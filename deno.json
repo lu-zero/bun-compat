@@ -1,0 +1,53 @@
+{
+  "name": "@lu-zero/bun-compat",
+  "version": "0.1.0",
+  "exports": {
+    ".": "./src/index.ts",
+    "./bun": "./src/from-bun.ts"
+  },
+  "publish": {
+    "exclude": ["test/", ".github/"]
+  },
+  "compilerOptions": {
+    "strict": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "declaration": true
+  },
+  "imports": {
+    "@std/toml": "jsr:@std/toml@^1.0",
+    "@std/yaml": "jsr:@std/yaml@^1.0",
+    "@std/jsonc": "jsr:@std/jsonc@^1.0",
+    "@std/fs": "jsr:@std/fs@^1.0",
+    "@std/semver": "jsr:@std/semver@^1.0",
+    "@std/cli": "jsr:@std/cli@^1.0",
+    "@std/path": "jsr:@std/path@^1.0",
+    "@std/media-types": "jsr:@std/media-types@^1.0",
+    "@std/assert": "jsr:@std/assert@^1.0",
+    "bun": "./src/from-bun.ts"
+  },
+  "tasks": {
+    "test": "deno test --allow-all test/",
+    "check": "deno check src/index.ts"
+  },
+  "lint": {
+    "rules": {
+      "exclude": [
+        "no-explicit-any",
+        "no-empty",
+        "require-await",
+        "prefer-const",
+        "no-unused-vars"
+      ]
+    }
+  },
+  "fmt": {
+    "useTabs": false,
+    "singleQuote": false,
+    "semiColons": true
+  }
+}

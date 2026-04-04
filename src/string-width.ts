@@ -1,0 +1,222 @@
+const ESC = "\x1b";
+const CSI = `${ESC}[`;
+
+const ansiRegex = new RegExp(
+  `(${ESC}(?:\\[[0-9;]*[a-zA-Z]|\\][^\\x07]*\\x07|\\[[0-9;]*m))`,
+  "g",
+);
+
+function stripAnsi(str: string): string {
+  return str.replace(ansiRegex, "");
+}
+
+const eastAsianWidthRanges = [
+  [0x1100, 0x115f],
+  [0x231a, 0x231b],
+  [0x2329, 0x232a],
+  [0x23e9, 0x23ec],
+  [0x23f0, 0x23f0],
+  [0x23f3, 0x23f3],
+  [0x25fd, 0x25fe],
+  [0x2614, 0x2615],
+  [0x2648, 0x2653],
+  [0x267f, 0x267f],
+  [0x2693, 0x2693],
+  [0x26a1, 0x26a1],
+  [0x26aa, 0x26ab],
+  [0x26bd, 0x26be],
+  [0x26c4, 0x26c5],
+  [0x26ce, 0x26ce],
+  [0x26d4, 0x26d4],
+  [0x26ea, 0x26ea],
+  [0x26f2, 0x26f3],
+  [0x26f5, 0x26f5],
+  [0x26fa, 0x26fa],
+  [0x26fd, 0x26fd],
+  [0x2705, 0x2705],
+  [0x270a, 0x270b],
+  [0x2728, 0x2728],
+  [0x274c, 0x274c],
+  [0x274e, 0x274e],
+  [0x2753, 0x2755],
+  [0x2757, 0x2757],
+  [0x2795, 0x2797],
+  [0x27b0, 0x27b0],
+  [0x27bf, 0x27bf],
+  [0x2b1b, 0x2b1c],
+  [0x2b50, 0x2b50],
+  [0x2b55, 0x2b55],
+  [0x2e80, 0x2e99],
+  [0x2e9b, 0x2ef3],
+  [0x2f00, 0x2fd5],
+  [0x2ff0, 0x2ffb],
+  [0x3000, 0x303e],
+  [0x3041, 0x3096],
+  [0x3099, 0x30ff],
+  [0x3105, 0x312f],
+  [0x3131, 0x318e],
+  [0x3190, 0x31ba],
+  [0x31c0, 0x31e3],
+  [0x31f0, 0x321e],
+  [0x3220, 0x3247],
+  [0x3250, 0x4dbf],
+  [0x4e00, 0xa48c],
+  [0xa490, 0xa4c6],
+  [0xa960, 0xa97c],
+  [0xac00, 0xd7a3],
+  [0xf900, 0xfaff],
+  [0xfe10, 0xfe19],
+  [0xfe30, 0xfe52],
+  [0xfe54, 0xfe66],
+  [0xfe68, 0xfe6b],
+  [0xff01, 0xff60],
+  [0xffe0, 0xffe6],
+  [0x1f004, 0x1f004],
+  [0x1f0cf, 0x1f0cf],
+  [0x1f170, 0x1f171],
+  [0x1f17e, 0x1f17f],
+  [0x1f18e, 0x1f18e],
+  [0x1f191, 0x1f19a],
+  [0x1f1e6, 0x1f1ff],
+  [0x1f201, 0x1f202],
+  [0x1f210, 0x1f23a],
+  [0x1f240, 0x1f248],
+  [0x1f250, 0x1f251],
+  [0x1f300, 0x1f321],
+  [0x1f324, 0x1f393],
+  [0x1f396, 0x1f397],
+  [0x1f399, 0x1f39b],
+  [0x1f39e, 0x1f3f0],
+  [0x1f3f3, 0x1f3f5],
+  [0x1f3f7, 0x1f4fd],
+  [0x1f4ff, 0x1f53d],
+  [0x1f549, 0x1f54e],
+  [0x1f550, 0x1f567],
+  [0x1f56f, 0x1f570],
+  [0x1f573, 0x1f57a],
+  [0x1f587, 0x1f587],
+  [0x1f58a, 0x1f58d],
+  [0x1f590, 0x1f590],
+  [0x1f595, 0x1f596],
+  [0x1f5a4, 0x1f5a4],
+  [0x1f5a5, 0x1f5a5],
+  [0x1f5a8, 0x1f5a8],
+  [0x1f5b1, 0x1f5b2],
+  [0x1f5bc, 0x1f5bc],
+  [0x1f5c2, 0x1f5c4],
+  [0x1f5d1, 0x1f5d3],
+  [0x1f5dc, 0x1f5de],
+  [0x1f5e1, 0x1f5e1],
+  [0x1f5e3, 0x1f5e3],
+  [0x1f5e8, 0x1f5e8],
+  [0x1f5ef, 0x1f5ef],
+  [0x1f5f3, 0x1f5f3],
+  [0x1f5fa, 0x1f64f],
+  [0x1f680, 0x1f6c5],
+  [0x1f6cb, 0x1f6d2],
+  [0x1f6d5, 0x1f6d5],
+  [0x1f6e0, 0x1f6e5],
+  [0x1f6e9, 0x1f6e9],
+  [0x1f6eb, 0x1f6ec],
+  [0x1f6f0, 0x1f6f0],
+  [0x1f6f3, 0x1f6f9],
+  [0x1f910, 0x1f93a],
+  [0x1f93c, 0x1f93e],
+  [0x1f940, 0x1f945],
+  [0x1f947, 0x1f970],
+  [0x1f973, 0x1f976],
+  [0x1f97a, 0x1f97a],
+  [0x1f97c, 0x1f9a2],
+  [0x1f9a5, 0x1f9aa],
+  [0x1f9ae, 0x1f9ca],
+  [0x1f9cd, 0x1f9ff],
+  [0x1fa00, 0x1fa53],
+  [0x1fa60, 0x1fa6d],
+  [0x1fa70, 0x1fa73],
+  [0x1fa80, 0x1fa82],
+  [0x1fa90, 0x1fa95],
+  [0x20000, 0x2fffd],
+  [0x30000, 0x3fffd],
+];
+
+function isFullwidth(code: number): boolean {
+  for (const [lo, hi] of eastAsianWidthRanges) {
+    if (code >= lo && code <= hi) return true;
+  }
+  return false;
+}
+
+export function stringWidth(
+  str: string,
+  opts?: { countAnsiEscapeCodes?: boolean },
+): number {
+  if (opts?.countAnsiEscapeCodes !== true) {
+    str = stripAnsi(str);
+  }
+  let width = 0;
+  for (const char of str) {
+    const code = char.codePointAt(0)!;
+    if (code <= 0x1f || (code >= 0x7f && code <= 0x9f)) continue;
+    if (code === 0x200b) continue;
+    width += isFullwidth(code) ? 2 : 1;
+  }
+  return width;
+}
+
+export function wrapAnsi(
+  str: string,
+  width: number,
+  opts?: { wordWrap?: boolean; hard?: boolean; trim?: boolean },
+): string {
+  const wordWrap = opts?.wordWrap ?? true;
+  const trim = opts?.trim ?? true;
+  const lines = str.split("\n");
+  const result: string[] = [];
+
+  for (const line of lines) {
+    const cleaned = trim ? line.trim() : line;
+    if (stringWidth(cleaned) <= width) {
+      result.push(cleaned);
+      continue;
+    }
+
+    let current = "";
+    let currentWidth = 0;
+    let word = "";
+    let wordWidth = 0;
+
+    for (const char of cleaned) {
+      const cw = stringWidth(char);
+      if (char === " " || char === "\t") {
+        if (
+          wordWrap && currentWidth + wordWidth + cw > width &&
+          current.length > 0
+        ) {
+          result.push(current);
+          current = word;
+          currentWidth = wordWidth;
+        } else {
+          current += word + char;
+          currentWidth += wordWidth + cw;
+        }
+        word = "";
+        wordWidth = 0;
+      } else {
+        word += char;
+        wordWidth += cw;
+      }
+    }
+
+    if (word.length > 0) {
+      if (wordWrap && currentWidth + wordWidth > width && current.length > 0) {
+        result.push(current);
+        current = word;
+      } else {
+        current += word;
+      }
+    }
+    if (current.length > 0) result.push(current);
+  }
+
+  return result.join("\n");
+}
