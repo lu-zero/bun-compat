@@ -18,6 +18,7 @@ export { JSON5 } from "./parsers/json5.ts";
 export { JSONL } from "./parsers/jsonl.ts";
 export { fileURLToPath, pathToFileURL } from "./url.ts";
 export { which } from "./which.ts";
+export { nanoseconds } from "./time.ts";
 export { Database } from "./sqlite.ts";
 
 export type SystemError = {

@@ -10,13 +10,9 @@
   },
   "compilerOptions": {
     "strict": true,
-    "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "outDir": "dist",
-    "declaration": true
+    "skipLibCheck": true
   },
   "imports": {
     "@std/toml": "jsr:@std/toml@^1.0",
