@@ -1,9 +1,11 @@
 {
   "name": "@lu-zero/bun-compat",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "exports": {
     ".": "./src/index.ts",
-    "./bun": "./src/from-bun.ts"
+    "./bun": "./src/from-bun.ts",
+    "./install": "./src/install.ts",
+    "./sqlite": "./src/sqlite.ts"
   },
   "publish": {
     "exclude": ["test/", ".github/"]
