@@ -7,7 +7,9 @@ APIs so that code written for Bun can run on Deno without modification.
 > yet been thoroughly audited. It may contain bugs, incomplete API coverage, or
 > surprising edge-case behaviour. Use at your own risk and please report issues.
 
-This project was developed primarily using [glm-5.1](https://docs.z.ai/guides/llm/glm-5) from Zhipu AI and [devstral-2](https://mistral.ai/) from Mistral AI.
+This project was developed primarily using
+[glm-5.1](https://docs.z.ai/guides/llm/glm-5) from Zhipu AI and
+[devstral-2](https://mistral.ai/) from Mistral AI.
 
 ## Usage
 
