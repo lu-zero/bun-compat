@@ -10,8 +10,8 @@
     "./bun": "./src/from-bun.ts"
   },
   "scripts": {
-    "test:bun": "bun test",
-    "test:deno": "deno test --allow-all test/",
+    "test:bun": "bun test ./src",
+    "test:deno": "deno task test",
     "check": "deno check src/index.ts"
   },
   "dependencies": {

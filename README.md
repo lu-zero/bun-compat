@@ -40,32 +40,34 @@ globalThis.Bun = BunShim;
 
 ## Implemented APIs
 
-| API                                                               | Notes                                              |
-| ----------------------------------------------------------------- | -------------------------------------------------- |
-| `Bun.env`                                                         | Proxy to `Deno.env`                                |
-| `Bun.argv`                                                        | `Deno.args` with executable prepended              |
-| `Bun.serve()`                                                     | Wraps `Deno.serve()`                               |
-| `Bun.spawn()` / `Bun.spawnSync()`                                 | Via `Deno.Command`                                 |
-| `Bun.$`                                                           | Shell template tag via subprocess                  |
-| `Bun.file()` / `Bun.write()`                                      | `Deno.open` / `Deno.writeFile` wrappers            |
-| `Bun.sleep()`                                                     | `setTimeout` wrapper                               |
-| `Bun.stdin`                                                       | `Deno.stdin` wrapper with `.text()`                |
-| `Bun.hash()`                                                      | xxHash64 / wyhash (pure JS)                        |
-| `Bun.Glob`                                                        | Via `@std/fs expandGlob`                           |
-| `Bun.password()`                                                  | PBKDF2 via `crypto.subtle`                         |
-| `Bun.stringWidth()` / `Bun.wrapAnsi()`                            | String width measurement + wrapping                |
-| `Bun.which()`                                                     | PATH lookup via `@std/cli`                         |
-| `Bun.TOML` / `Bun.YAML` / `Bun.JSONC` / `Bun.JSON5` / `Bun.JSONL` | Parsers via `@std/*`                               |
-| `Bun.fileURLToPath()` / `Bun.pathToFileURL()`                     | URL ↔ path conversion                              |
-| `Database`                                                        | Bun SQLite API over `node:sqlite` (`DatabaseSync`) |
+| API                                                                            | Notes                                                                                         |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `Bun.env`                                                                      | Proxy to `Deno.env`                                                                           |
+| `Bun.argv`                                                                     | `Deno.args` with executable prepended                                                         |
+| `Bun.serve()`                                                                  | Wraps `Deno.serve()`                                                                          |
+| `Bun.spawn()` / `Bun.spawnSync()`                                              | Via `Deno.Command`                                                                            |
+| `Bun.$`                                                                        | Shell template tag via subprocess                                                             |
+| `Bun.file()` / `Bun.write()`                                                   | `Deno.open` / `Deno.writeFile` wrappers                                                       |
+| `Bun.sleep()`                                                                  | `setTimeout` wrapper                                                                          |
+| `Bun.stdin`                                                                    | `Deno.stdin` wrapper with `.text()`                                                           |
+| `Bun.hash()`                                                                   | xxHash64 / wyhash (pure JS)                                                                   |
+| `Bun.Glob`                                                                     | Via `@std/fs expandGlob`                                                                      |
+| `Bun.password()`                                                               | PBKDF2 via `crypto.subtle`                                                                    |
+| `Bun.stringWidth()` / `Bun.wrapAnsi()`                                         | String width measurement + wrapping                                                           |
+| `Bun.which()`                                                                  | PATH lookup via `@std/cli`                                                                    |
+| `Bun.TOML` / `Bun.YAML` / `Bun.JSONC` / `Bun.JSON5` / `Bun.JSONL`              | Parsers via `@std/*`                                                                          |
+| `Bun.fileURLToPath()` / `Bun.pathToFileURL()`                                  | URL ↔ path conversion                                                                         |
+| `Database`                                                                     | Bun SQLite API over `node:sqlite` (`DatabaseSync`)                                            |
+| `dlopen()` / `ptr()` / `toArrayBuffer()` / `JSCallback` / `FFIType` / `suffix` | Bun FFI over `Deno.dlopen`                                                                    |
+| `defineStruct()` / `defineEnum()`                                              | Bun FFI structs with `lengthOf`, `mapValue`, `reduceValue`, `packTransform`/`unpackTransform` |
 
 ## Test
 
 ```bash
-deno test --allow-all test/
+deno task test
 ```
 
-29 tests, all passing.
+58 tests, all passing.
 
 ## License
 

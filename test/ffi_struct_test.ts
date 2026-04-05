@@ -128,6 +128,48 @@ Deno.test("enum - to and from", () => {
   assertEquals(E.from(2), "baz");
 });
 
+Deno.test("struct - reduceValue in unpack", () => {
+  const S = defineStruct([
+    ["ptr", "pointer"],
+    ["len", "u32"],
+    ["reserved", "u32", { default: 0 }],
+  ], {
+    reduceValue: (value: unknown) => {
+      const v = value as { ptr: number; len: number };
+      return { ptr: v.ptr, len: v.len };
+    },
+  });
+  const buf = S.pack({ ptr: 0x1000, len: 42 });
+  const obj = S.unpack(buf);
+  assertEquals(Object.keys(obj).length, 2);
+  assertEquals(obj.ptr, 0x1000);
+  assertEquals(obj.len, 42);
+});
+
+Deno.test("struct - reduceValue in unpackList", () => {
+  const S = defineStruct([
+    ["ptr", "pointer"],
+    ["len", "u32"],
+    ["reserved", "u32", { default: 0 }],
+  ], {
+    reduceValue: (value: unknown) => {
+      const v = value as { ptr: number; len: number };
+      return { ptr: v.ptr, len: v.len };
+    },
+  });
+  const buf = S.packList([
+    { ptr: 0x100, len: 10 },
+    { ptr: 0x200, len: 20 },
+  ]);
+  const list = S.unpackList(buf, 2);
+  assertEquals(list.length, 2);
+  assertEquals(Object.keys(list[0]).length, 2);
+  assertEquals(list[0].ptr, 0x100);
+  assertEquals(list[0].len, 10);
+  assertEquals(list[1].ptr, 0x200);
+  assertEquals(list[1].len, 20);
+});
+
 Deno.test("struct - with enum field", () => {
   const Kind = defineEnum({ a: 0, b: 1, c: 2 }, "u8");
   const S = defineStruct([
@@ -138,4 +180,46 @@ Deno.test("struct - with enum field", () => {
   const obj = S.unpack(buf);
   assertEquals(obj.kind, "b");
   assertEquals(obj.value, 42);
+});
+
+Deno.test("struct - lengthOf auto-writes byte length for char*", () => {
+  const S = defineStruct([
+    ["data", "char*"],
+    ["data_len", "u64", { lengthOf: "data" }],
+  ]);
+  const buf = S.pack({ data: "hello" });
+  const dv = new DataView(buf);
+  const lenOffset = S.layoutByName.data_len.offset;
+  assertEquals(dv.getBigUint64(lenOffset, true), 5n);
+});
+
+Deno.test("struct - lengthOf auto-writes count for array field", () => {
+  const S = defineStruct([
+    ["items", ["u32"]],
+    ["items_count", "u32", { lengthOf: "items" }],
+  ]);
+  const buf = S.pack({ items: [10, 20, 30] });
+  const dv = new DataView(buf);
+  const countOffset = S.layoutByName.items_count.offset;
+  assertEquals(dv.getUint32(countOffset, true), 3);
+});
+
+Deno.test("struct - lengthOf in packList", () => {
+  const S = defineStruct([
+    ["text", "char*"],
+    ["text_len", "u64", { lengthOf: "text" }],
+    ["link", "char*", { default: "" }],
+    ["link_len", "u64", { lengthOf: "link" }],
+  ]);
+  const buf = S.packList([
+    { text: "abc", link: "http://x" },
+    { text: "hello world", link: "" },
+  ]);
+  const dv = new DataView(buf);
+  const textLenOff = S.layoutByName.text_len.offset;
+  const linkLenOff = S.layoutByName.link_len.offset;
+  assertEquals(dv.getBigUint64(textLenOff, true), 3n);
+  assertEquals(dv.getBigUint64(linkLenOff, true), 8n);
+  assertEquals(dv.getBigUint64(textLenOff + S.size, true), 11n);
+  assertEquals(dv.getBigUint64(linkLenOff + S.size, true), 0n);
 });

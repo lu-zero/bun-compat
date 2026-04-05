@@ -133,8 +133,16 @@ export function dlopen(path: string, symbols: BunSymbols): DlopenResult {
     if (typeof fn === "function") {
       wrapped[name] = (...args: unknown[]): unknown => {
         const converted = args.map((a, i) => {
-          if (paramTypes[i] === "pointer" && typeof a === "number") {
-            return Deno.UnsafePointer.create(BigInt(a));
+          if (paramTypes[i] === "pointer") {
+            if (typeof a === "number") {
+              return Deno.UnsafePointer.create(BigInt(a));
+            }
+            if (a instanceof ArrayBuffer || ArrayBuffer.isView(a)) {
+              const p = Deno.UnsafePointer.of(a as BufferSource);
+              if (p === null) return null;
+              return p;
+            }
+            if (a === null || a === undefined) return a;
           }
           return a;
         });

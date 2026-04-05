@@ -198,6 +198,13 @@ export function defineStruct(
 
   const totalSize = alignTo(off, structAlign);
 
+  const lengthOfReverse: Record<string, string> = {};
+  for (const [name, { opts }] of Object.entries(layout)) {
+    if (opts.lengthOf) {
+      lengthOfReverse[opts.lengthOf] = name;
+    }
+  }
+
   function writeField(dv: DataView, field: string, val: unknown) {
     const { offset, type, opts } = layout[field];
 
@@ -214,6 +221,7 @@ export function defineStruct(
     if (opts.packTransform) val = opts.packTransform(val);
 
     if (Array.isArray(type)) {
+      let count = 0;
       if (Array.isArray(val)) {
         const elemType = type[0];
         const elemSize = typeSizes[elemType] ?? 4;
@@ -222,11 +230,22 @@ export function defineStruct(
         for (let i = 0; i < val.length; i++) {
           writePrim(inner, i * elemSize, elemType, val[i]);
         }
+        count = val.length;
         dv.setBigUint64(offset, BigInt(ptr(buf)), true);
       } else if (val instanceof ArrayBuffer || ArrayBuffer.isView(val)) {
+        const elemType = type[0];
+        const elemSize = typeSizes[elemType] ?? 4;
+        count = Math.floor(
+          (val instanceof ArrayBuffer ? val.byteLength : val.byteLength) /
+            elemSize,
+        );
         dv.setBigUint64(offset, BigInt(ptr(val as ArrayBuffer)), true);
       } else {
         dv.setBigUint64(offset, 0n, true);
+      }
+      if (lengthOfReverse[field]) {
+        const lenLayout = layout[lengthOfReverse[field]];
+        writePrim(dv, lenLayout.offset, lenLayout.type as string, count);
       }
       return;
     }
@@ -238,13 +257,20 @@ export function defineStruct(
     }
 
     if (type === "char*" || type === "cstring") {
+      let byteLen = 0;
       if (typeof val === "string") {
         const encoded = new TextEncoder().encode(val);
+        byteLen = encoded.byteLength;
         dv.setBigUint64(offset, BigInt(ptr(encoded.buffer)), true);
       } else if (val instanceof ArrayBuffer || ArrayBuffer.isView(val)) {
+        byteLen = (val instanceof ArrayBuffer ? val : val.buffer).byteLength;
         dv.setBigUint64(offset, BigInt(ptr(val as ArrayBuffer)), true);
       } else {
         dv.setBigUint64(offset, 0n, true);
+      }
+      if (lengthOfReverse[field]) {
+        const lenLayout = layout[lengthOfReverse[field]];
+        writePrim(dv, lenLayout.offset, lenLayout.type as string, byteLen);
       }
       return;
     }
@@ -336,6 +362,9 @@ export function defineStruct(
       for (const field of Object.keys(layout)) {
         result[field] = readField(dv, field);
       }
+      if (options?.reduceValue) {
+        return options.reduceValue(result) as Record<string, unknown>;
+      }
       return result;
     },
     packList(objs: Record<string, unknown>[]): ArrayBuffer {
@@ -362,7 +391,11 @@ export function defineStruct(
         for (const field of Object.keys(layout)) {
           obj[field] = readField(dv, field);
         }
-        results.push(obj);
+        results.push(
+          options?.reduceValue
+            ? options.reduceValue(obj) as Record<string, unknown>
+            : obj,
+        );
       }
       return results;
     },
