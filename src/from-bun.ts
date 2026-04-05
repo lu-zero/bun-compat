@@ -20,6 +20,16 @@ export { fileURLToPath, pathToFileURL } from "./url.ts";
 export { which } from "./which.ts";
 export { nanoseconds } from "./time.ts";
 export { Database } from "./sqlite.ts";
+export {
+  dlopen,
+  FFIType,
+  JSCallback,
+  ptr,
+  suffix,
+  toArrayBuffer,
+} from "./ffi.ts";
+export type { Pointer } from "./ffi.ts";
+export { defineEnum, defineStruct } from "./ffi-structs.ts";
 
 export type SystemError = {
   code?: string;
