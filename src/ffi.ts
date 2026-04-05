@@ -142,6 +142,16 @@ export function dlopen(path: string, symbols: BunSymbols): DlopenResult {
         if (typeof result === "bigint") {
           return Number(result);
         }
+        if (
+          typeof result === "object" && result !== null &&
+          denoSymbols[name].result === "pointer"
+        ) {
+          return Number(
+            Deno.UnsafePointer.value(
+              result as Parameters<typeof Deno.UnsafePointer.value>[0],
+            ),
+          );
+        }
         return result;
       };
     }
