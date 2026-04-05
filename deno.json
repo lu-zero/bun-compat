@@ -1,11 +1,13 @@
 {
   "name": "@lu-zero/bun-compat",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "exports": {
     ".": "./src/index.ts",
     "./bun": "./src/from-bun.ts",
     "./install": "./src/install.ts",
-    "./sqlite": "./src/sqlite.ts"
+    "./sqlite": "./src/sqlite.ts",
+    "./ffi": "./src/ffi.ts",
+    "./ffi-structs": "./src/ffi-structs.ts"
   },
   "publish": {
     "exclude": ["test/", ".github/"]
@@ -29,7 +31,7 @@
     "bun": "./src/from-bun.ts"
   },
   "tasks": {
-    "test": "deno test --allow-all test/",
+    "test": "deno test --allow-all --unstable-ffi test/",
     "check": "deno check src/index.ts"
   },
   "lint": {
