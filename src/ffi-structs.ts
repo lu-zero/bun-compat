@@ -179,7 +179,7 @@ export interface StructDef {
 
 export function defineStruct(
   fields: StructFieldDefinition[],
-  options?: StructOptions,
+  options?: StructOptions & { reduceValue?: (val: unknown) => unknown },
 ): StructDef {
   const layout: Record<string, FieldLayout> = {};
   const arrayFields: string[] = [];
