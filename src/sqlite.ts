@@ -1,3 +1,22 @@
+/**
+ * SQLite database wrapper compatible with Bun's `Database` API.
+ *
+ * Delegates to Deno's `node:sqlite` `DatabaseSync` under the hood,
+ * exposing `query`, `run`, `exec`, `prepare`, `transaction`, and
+ * `close` methods that match Bun's surface area.
+ *
+ * @example
+ * ```ts
+ * import { Database } from "bun:sqlite";
+ * const db = new Database(":memory:");
+ * db.run("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
+ * db.query("INSERT INTO t (name) VALUES (?)", { $name: "alice" });
+ * const rows = db.query("SELECT * FROM t").rows;
+ * db.close();
+ * ```
+ *
+ * @module
+ */
 import {
   DatabaseSync,
   type StatementResultingChanges,
@@ -6,6 +25,7 @@ import {
 
 type SqliteValue = string | number | bigint | Uint8Array | null;
 
+/** SQLite database wrapper matching Bun's `Database` API. */
 export class Database {
   #db: DatabaseSync;
   #open: boolean = true;

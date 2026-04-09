@@ -1,3 +1,24 @@
+/**
+ * Bun FFI compatibility layer for Deno.
+ *
+ * Provides `dlopen`, `ptr`, `toArrayBuffer`, `JSCallback`, and `FFIType` —
+ * matching the `bun:ffi` API surface so that code written for Bun can run
+ * on Deno without changes. Internally wraps `Deno.dlopen` and
+ * `Deno.UnsafeCallback`, converting between Bun's number-based pointer
+ * model and Deno's BigInt-based one.
+ *
+ * @example
+ * ```ts
+ * import { dlopen, ptr } from "bun:ffi";
+ * const lib = dlopen("./mylib.so", { add: { args: ["i32", "i32"], returns: "i32" } });
+ * console.log(lib.symbols.add(1, 2));
+ * lib.close();
+ * ```
+ *
+ * @module
+ */
+
+/** Pointer type — a plain `number` on Bun, backed by BigInt on Deno. */
 export type Pointer = number;
 
 type BunFFIType =
@@ -82,6 +103,7 @@ const FFITypeValues = {
   f64: "f64" as const,
 };
 
+/** FFI type constants matching Bun's `FFIType` enum values. */
 export const FFIType = FFITypeValues;
 
 function convertArg(
@@ -120,6 +142,21 @@ interface DlopenResult {
   close(): void;
 }
 
+/**
+ * Open a shared library and return its symbols as callable functions.
+ *
+ * Wraps `Deno.dlopen` with automatic argument and return-value conversion
+ * between Bun's number-based pointer model and Deno's BigInt-based one.
+ * Pointer arguments accept `number`, `ArrayBuffer`, or `ArrayBufferView`.
+ * 64-bit integer arguments (`usize`, `isize`, `u64`, `i64`) accept JS
+ * `number` and are converted to `BigInt` automatically. Return values of
+ * those types are preserved as `BigInt`; other `bigint` returns become
+ * `number`.
+ *
+ * @param path Absolute path to the shared library.
+ * @param symbols Map of symbol names to `{ args?, returns? }` definitions
+ *   using Bun FFI type strings.
+ */
 export function dlopen(path: string, symbols: BunSymbols): DlopenResult {
   const denoSymbols = convertSymbols(symbols);
   const lib = Deno.dlopen(
@@ -154,7 +191,14 @@ export function dlopen(path: string, symbols: BunSymbols): DlopenResult {
           return a;
         });
         const result = fn(...converted);
+        const resultType = denoSymbols[name].result;
         if (typeof result === "bigint") {
+          if (
+            resultType === "u64" || resultType === "i64" ||
+            resultType === "usize" || resultType === "isize"
+          ) {
+            return result;
+          }
           return Number(result);
         }
         if (
@@ -174,12 +218,24 @@ export function dlopen(path: string, symbols: BunSymbols): DlopenResult {
   return { symbols: wrapped, close: () => lib.close() };
 }
 
+/**
+ * Get a pointer value (`number`) for an `ArrayBuffer` or `ArrayBufferView`.
+ *
+ * Equivalent to Bun's `ptr()` — returns `0` for null pointers.
+ */
 export function ptr(buffer: ArrayBuffer | ArrayBufferView): Pointer {
   const p = Deno.UnsafePointer.of(buffer as BufferSource);
   if (p === null) return 0 as Pointer;
   return Number(Deno.UnsafePointer.value(p)) as Pointer;
 }
 
+/**
+ * Read an `ArrayBuffer` from a raw pointer address.
+ *
+ * @param pointer The pointer address (as a `number`).
+ * @param byteOffset Byte offset into the memory region.
+ * @param length Number of bytes to read.
+ */
 export function toArrayBuffer(
   pointer: Pointer,
   byteOffset: number,
@@ -196,6 +252,18 @@ interface JSCallbackOptions {
   returns?: string | typeof FFITypeValues[keyof typeof FFITypeValues];
 }
 
+/**
+ * Wraps a JavaScript function as a native FFI callback, matching Bun's
+ * `JSCallback` API. Converts `BigInt` arguments to `number` before
+ * invoking the wrapped function.
+ *
+ * @example
+ * ```ts
+ * const cb = new JSCallback((x) => x * 2, { args: ["i32"], returns: "i32" });
+ * // pass cb.ptr to native code expecting a function pointer
+ * cb.close(); // free when done
+ * ```
+ */
 export class JSCallback {
   private _callback: Deno.UnsafeCallback;
   private _ptr: Pointer;
@@ -238,6 +306,7 @@ export class JSCallback {
   }
 }
 
+/** Platform-appropriate shared library suffix (`"dylib"`, `"so"`, or `"dll"`). */
 export const suffix: string = Deno.build.os === "darwin"
   ? "dylib"
   : Deno.build.os === "windows"

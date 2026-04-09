@@ -1,3 +1,20 @@
+/**
+ * FFI struct and enum helpers for Deno, compatible with Bun's struct API.
+ *
+ * Provides `defineStruct` and `defineEnum` for packing/unpacking binary data
+ * to pass to and from native FFI functions. Handles alignment, pointer
+ * fields, string fields, nested arrays, and enum conversions.
+ *
+ * @example
+ * ```ts
+ * import { defineStruct } from "bun-ffi-structs";
+ * const Point = defineStruct([["x", "f64"], ["y", "f64"]]);
+ * const buf = Point.pack({ x: 1.5, y: 2.5 });
+ * const obj = Point.unpack(buf);
+ * ```
+ *
+ * @module
+ */
 import { ptr, toArrayBuffer } from "./ffi.ts";
 import type { Pointer } from "./ffi.ts";
 
@@ -164,6 +181,7 @@ interface FieldLayout {
   opts: StructFieldOptions;
 }
 
+/** Definition of a packed binary struct with pack/unpack methods. */
 export interface StructDef {
   __type: "struct";
   size: number;
@@ -177,6 +195,14 @@ export interface StructDef {
   unpackList(buf: ArrayBuffer, count: number): Record<string, unknown>[];
 }
 
+/**
+ * Define a binary struct layout. Returns an object with `pack`, `unpack`,
+ * `packList`, and `unpackList` methods for converting between JS objects
+ * and `ArrayBuffer` representations suitable for FFI calls.
+ *
+ * @param fields Array of `[name, type]` or `[name, type, opts]` tuples.
+ * @param options Optional `{ mapValue, reduceValue }` transforms.
+ */
 export function defineStruct(
   fields: StructFieldDefinition[],
   options?: StructOptions & { reduceValue?: (val: unknown) => unknown },
@@ -402,6 +428,12 @@ export function defineStruct(
   };
 }
 
+/**
+ * Define an FFI-safe enum with `to`/`from` conversion methods.
+ *
+ * @param mapping Record mapping enum names to numeric values.
+ * @param base The underlying integer type (default `"u32"`).
+ */
 export function defineEnum(
   mapping: Record<string, number>,
   base = "u32",

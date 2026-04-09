@@ -33,8 +33,8 @@ Deno.test("ffi - dlopen strlen", () => {
   });
   const str = new TextEncoder().encode("hello\0");
   const p = ptr(str);
-  const len = lib.symbols.strlen(p) as number;
-  assertEquals(len, 5);
+  const len = lib.symbols.strlen(p) as bigint;
+  assertEquals(len, 5n);
   lib.close();
 });
 

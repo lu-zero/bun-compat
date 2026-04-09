@@ -1,6 +1,6 @@
 {
   "name": "@lu-zero/bun-compat",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "exports": {
     ".": "./src/index.ts",
     "./bun": "./src/from-bun.ts",

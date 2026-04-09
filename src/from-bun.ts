@@ -1,3 +1,11 @@
+/**
+ * Re-exports every Bun API that this package polyfills.
+ *
+ * Import from `"bun"` (mapped via Deno's import map) to get the full set:
+ * `env`, `argv`, `file`, `spawn`, `$`, `Glob`, `dlopen`, `Database`, etc.
+ *
+ * @module
+ */
 export { argv, env } from "./env.ts";
 export { $ } from "./shell.ts";
 export { Glob } from "./glob.ts";

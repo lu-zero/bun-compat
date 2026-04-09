@@ -1,3 +1,9 @@
+/**
+ * Full Bun global shim — aggregates every polyfilled module into a single
+ * object suitable for assignment to `globalThis.Bun`.
+ *
+ * @module
+ */
 import { argv, env } from "./env.ts";
 import { sleep } from "./sleep.ts";
 import { nanoseconds } from "./time.ts";
