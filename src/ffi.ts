@@ -144,6 +144,13 @@ export function dlopen(path: string, symbols: BunSymbols): DlopenResult {
             }
             if (a === null || a === undefined) return a;
           }
+          if (
+            (paramTypes[i] === "usize" || paramTypes[i] === "isize" ||
+              paramTypes[i] === "u64" || paramTypes[i] === "i64") &&
+            typeof a === "number"
+          ) {
+            return BigInt(a);
+          }
           return a;
         });
         const result = fn(...converted);
