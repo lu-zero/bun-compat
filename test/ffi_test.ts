@@ -1,5 +1,12 @@
 import { assertEquals } from "@std/assert";
-import { dlopen, JSCallback, ptr, suffix, toArrayBuffer } from "../src/ffi.ts";
+import {
+  dlopen,
+  FFIType,
+  JSCallback,
+  ptr,
+  suffix,
+  toArrayBuffer,
+} from "../src/ffi.ts";
 
 const LIBC = Deno.build.os === "darwin"
   ? "libSystem.B.dylib"
@@ -104,11 +111,93 @@ Deno.test("ffi - dlopen close", () => {
 });
 
 Deno.test("ffi - FFIType constants exist", async (t) => {
-  const { FFIType } = await import("../src/ffi.ts");
   await t.step("ptr", () => assertEquals(FFIType.ptr, "ptr"));
   await t.step("void", () => assertEquals(FFIType.void, "void"));
   await t.step("u8", () => assertEquals(FFIType.u8, "u8"));
   await t.step("i32", () => assertEquals(FFIType.i32, "i32"));
   await t.step("u64", () => assertEquals(FFIType.u64, "u64"));
   await t.step("f64", () => assertEquals(FFIType.f64, "f64"));
+});
+
+// --- Type-aware conversion tests ---
+
+Deno.test("ffi - dlopen usize return preserved as bigint", () => {
+  const lib = dlopen(LIBC, {
+    strlen: { args: ["ptr"], returns: "usize" },
+  });
+  const str = new TextEncoder().encode("hello\0");
+  const p = ptr(str);
+  const len = lib.symbols.strlen(p);
+  assertEquals(typeof len, "bigint");
+  assertEquals(len, 5n);
+  lib.close();
+});
+
+Deno.test("ffi - dlopen pointer arg from number", () => {
+  const lib = dlopen(LIBC, {
+    strlen: { args: ["ptr"], returns: "usize" },
+  });
+  const str = new TextEncoder().encode("hello\0");
+  const p = ptr(str);
+  assertEquals(typeof p, "number");
+  const len = lib.symbols.strlen(p);
+  assertEquals(len, 5n);
+  lib.close();
+});
+
+Deno.test("ffi - dlopen pointer arg from TypedArray", () => {
+  const lib = dlopen(LIBC, {
+    strlen: { args: ["ptr"], returns: "usize" },
+  });
+  const str = new TextEncoder().encode("hello\0");
+  const len = lib.symbols.strlen(str);
+  assertEquals(len, 5n);
+  lib.close();
+});
+
+Deno.test("ffi - dlopen pointer return converted to number", () => {
+  const lib = dlopen(LIBC, {
+    getenv: { args: ["ptr"], returns: "ptr" },
+  });
+  const name = new TextEncoder().encode("HOME\0");
+  const result = lib.symbols.getenv(name);
+  assertEquals(result === null || typeof result === "number", true);
+  lib.close();
+});
+
+// The qsort test exercises the critical JSCallback pointer arg conversion:
+// native code calls back with two PointerObject args → our layer converts to numbers
+Deno.test("ffi - JSCallback ptr args arrive as numbers (qsort)", () => {
+  const lib = dlopen(LIBC, {
+    qsort: { args: ["ptr", "usize", "usize", "ptr"], returns: "void" },
+  });
+
+  const arr = new Uint8Array([3, 1, 2]);
+  const cmpCb = new JSCallback((a: unknown, b: unknown) => {
+    assertEquals(typeof a, "number", "ptr arg should be number");
+    assertEquals(typeof b, "number", "ptr arg should be number");
+    const va = new Uint8Array(toArrayBuffer(a as number, 0, 1))[0];
+    const vb = new Uint8Array(toArrayBuffer(b as number, 0, 1))[0];
+    return (va - vb) as unknown;
+  }, { args: ["ptr", "ptr"], returns: "i32" });
+
+  lib.symbols.qsort(arr, 3, 1, cmpCb.ptr);
+  assertEquals(arr[0], 1);
+  assertEquals(arr[1], 2);
+  assertEquals(arr[2], 3);
+
+  cmpCb.close();
+  lib.close();
+});
+
+// Test that writing to stdout via write() works — exercises usize arg conversion
+Deno.test("ffi - dlopen usize arg converted from number", () => {
+  const lib = dlopen(LIBC, {
+    write: { args: ["i32", "ptr", "usize"], returns: "isize" },
+  });
+  const msg = new TextEncoder().encode("x\0");
+  // Pass 1 as a number for the usize param — should be auto-converted to BigInt
+  const result = lib.symbols.write(1, msg, 1 as unknown as bigint);
+  assertEquals(typeof result, "bigint");
+  lib.close();
 });

@@ -3,22 +3,27 @@
  *
  * Provides `dlopen`, `ptr`, `toArrayBuffer`, `JSCallback`, and `FFIType` —
  * matching the `bun:ffi` API surface so that code written for Bun can run
- * on Deno without changes. Internally wraps `Deno.dlopen` and
- * `Deno.UnsafeCallback`, converting between Bun's number-based pointer
- * model and Deno's BigInt-based one.
+ * on Deno without changes.
  *
- * @example
- * ```ts
- * import { dlopen, ptr } from "bun:ffi";
- * const lib = dlopen("./mylib.so", { add: { args: ["i32", "i32"], returns: "i32" } });
- * console.log(lib.symbols.add(1, 2));
- * lib.close();
- * ```
+ * ## Conversion Model
+ *
+ * Bun and Deno differ fundamentally in how they represent pointers and
+ * wide integers across FFI boundaries:
+ *
+ * | Concept              | Bun                    | Deno                          |
+ * |----------------------|------------------------|-------------------------------|
+ * | Pointer values       | `number`              | `PointerObject` (opaque obj) |
+ * | u64/i64/usize/isize  | `bigint` (returns/args) | `bigint` (returns/args)     |
+ * | Null pointer         | `null`                | `null`                        |
+ *
+ * Every conversion is **type-aware**: the declared FFI type of each
+ * parameter and return value determines the conversion applied.
+ * This avoids the "whack-a-mole" pattern of fixing one type mismatch
+ * at a time.
  *
  * @module
  */
 
-/** Pointer type — a plain `number` on Bun, backed by BigInt on Deno. */
 export type Pointer = number;
 
 type BunFFIType =
@@ -73,16 +78,19 @@ const typeMap: Record<string, DenoNativeType> = {
   f64: "f64",
 };
 
+const WIDE_INT_TYPES = new Set<string>(["u64", "i64", "usize", "isize"]);
+const POINTER_TYPES = new Set<string>(["ptr", "pointer"]);
+
+function isWideInt(t: string): boolean {
+  return WIDE_INT_TYPES.has(t);
+}
+
+function isPointerType(t: string): boolean {
+  return POINTER_TYPES.has(t);
+}
+
 function convertType(t: string): DenoNativeType {
   return typeMap[t] ?? (t as DenoNativeType);
-}
-
-function isFFITypeEnum(v: unknown): v is FFITypeEnumValue {
-  return typeof v === "string" && v in typeMap;
-}
-
-interface FFITypeEnumValue {
-  readonly name: string;
 }
 
 const FFITypeValues = {
@@ -103,139 +111,183 @@ const FFITypeValues = {
   f64: "f64" as const,
 };
 
-/** FFI type constants matching Bun's `FFIType` enum values. */
 export const FFIType = FFITypeValues;
 
-function convertArg(
-  t: string | typeof FFITypeValues[keyof typeof FFITypeValues],
-): DenoNativeType {
-  return convertType(typeof t === "string" ? t : t);
+type FFITypeValue = (typeof FFITypeValues)[keyof typeof FFITypeValues];
+
+function resolveType(t: string | FFITypeValue): string {
+  return typeof t === "string" ? t : t;
 }
 
 interface BunSymbolDef {
-  args?: (string | typeof FFITypeValues[keyof typeof FFITypeValues])[];
-  returns?: string | typeof FFITypeValues[keyof typeof FFITypeValues];
+  args?: (string | FFITypeValue)[];
+  returns?: string | FFITypeValue;
 }
 
 type BunSymbols = Record<string, BunSymbolDef>;
 
-function convertSymbols(symbols: BunSymbols) {
+interface ResolvedSymbol {
+  parameters: DenoNativeType[];
+  result: DenoNativeType;
+  bunParamTypes: string[];
+  bunResultType: string;
+}
+
+function resolveSymbols(symbols: BunSymbols): {
+  denoSymbols: Record<
+    string,
+    { parameters: DenoNativeType[]; result: DenoNativeType }
+  >;
+  resolved: Record<string, ResolvedSymbol>;
+} {
   const denoSymbols: Record<
     string,
     { parameters: DenoNativeType[]; result: DenoNativeType }
   > = {};
+  const resolved: Record<string, ResolvedSymbol> = {};
+
   for (const [name, def] of Object.entries(symbols)) {
-    denoSymbols[name] = {
-      parameters: (def.args ?? []).map((a) => convertArg(a)),
-      result: convertType(
-        def.returns
-          ? (typeof def.returns === "string" ? def.returns : def.returns)
-          : "void",
-      ),
-    };
+    const bunParamTypes = (def.args ?? []).map((a) => resolveType(a));
+    const bunResultType = def.returns ? resolveType(def.returns) : "void";
+    const parameters = bunParamTypes.map((t) => convertType(t));
+    const result = convertType(bunResultType);
+
+    denoSymbols[name] = { parameters, result };
+    resolved[name] = { parameters, result, bunParamTypes, bunResultType };
   }
-  return denoSymbols;
+
+  return { denoSymbols, resolved };
 }
+
+// --- Type-aware argument conversion (JS → Deno FFI) ---
+
+function convertArgToDeno(value: unknown, bunType: string): unknown {
+  if (isPointerType(bunType)) {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "number") {
+      return Deno.UnsafePointer.create(BigInt(value));
+    }
+    if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) {
+      const p = Deno.UnsafePointer.of(value as BufferSource);
+      return p === null ? null : p;
+    }
+    return value;
+  }
+  if (isWideInt(bunType)) {
+    if (typeof value === "number") return BigInt(value);
+    return value;
+  }
+  return value;
+}
+
+// --- Type-aware return conversion (Deno FFI → JS / Bun convention) ---
+
+function convertReturnFromDeno(value: unknown, bunType: string): unknown {
+  if (isPointerType(bunType)) {
+    if (value === null) return null;
+    if (typeof value === "object" && value !== null) {
+      return Number(
+        Deno.UnsafePointer.value(
+          value as Parameters<typeof Deno.UnsafePointer.value>[0],
+        ),
+      );
+    }
+    if (typeof value === "bigint") return Number(value);
+    return value;
+  }
+  if (isWideInt(bunType)) {
+    return value;
+  }
+  if (typeof value === "bigint") {
+    return Number(value);
+  }
+  return value;
+}
+
+// --- Type-aware callback argument conversion (Deno → JS / Bun convention) ---
+
+function convertCallbackArgFromDeno(value: unknown, bunType: string): unknown {
+  if (isPointerType(bunType)) {
+    if (value === null) return null;
+    if (typeof value === "object" && value !== null) {
+      try {
+        return Number(
+          Deno.UnsafePointer.value(
+            value as Parameters<typeof Deno.UnsafePointer.value>[0],
+          ),
+        );
+      } catch {
+        return value;
+      }
+    }
+    if (typeof value === "bigint") return Number(value);
+    if (typeof value === "number") return value;
+    return value;
+  }
+  // u64/i64/usize/isize: both Bun and Deno deliver as bigint → keep as-is
+  return value;
+}
+
+// --- Type-aware callback return conversion (JS / Bun convention → Deno FFI) ---
+
+function convertCallbackReturnToDeno(value: unknown, bunType: string): unknown {
+  if (isPointerType(bunType)) {
+    if (value === null) return null;
+    if (typeof value === "number") {
+      return Deno.UnsafePointer.create(BigInt(value));
+    }
+    return value;
+  }
+  if (isWideInt(bunType)) {
+    if (typeof value === "number") return BigInt(value);
+    return value;
+  }
+  return value;
+}
+
+// --- dlopen ---
 
 interface DlopenResult {
   symbols: Record<string, (...args: unknown[]) => unknown>;
   close(): void;
 }
 
-/**
- * Open a shared library and return its symbols as callable functions.
- *
- * Wraps `Deno.dlopen` with automatic argument and return-value conversion
- * between Bun's number-based pointer model and Deno's BigInt-based one.
- * Pointer arguments accept `number`, `ArrayBuffer`, or `ArrayBufferView`.
- * 64-bit integer arguments (`usize`, `isize`, `u64`, `i64`) accept JS
- * `number` and are converted to `BigInt` automatically. Return values of
- * those types are preserved as `BigInt`; other `bigint` returns become
- * `number`.
- *
- * @param path Absolute path to the shared library.
- * @param symbols Map of symbol names to `{ args?, returns? }` definitions
- *   using Bun FFI type strings.
- */
 export function dlopen(path: string, symbols: BunSymbols): DlopenResult {
-  const denoSymbols = convertSymbols(symbols);
+  const { denoSymbols, resolved } = resolveSymbols(symbols);
   const lib = Deno.dlopen(
     path,
     denoSymbols as Parameters<typeof Deno.dlopen>[1],
   );
   const wrapped: Record<string, (...args: unknown[]) => unknown> = {};
+
   for (const name of Object.keys(symbols)) {
     const fn = lib.symbols[name] as (...args: unknown[]) => unknown;
-    const paramTypes = denoSymbols[name].parameters;
+    const sym = resolved[name];
+
     if (typeof fn === "function") {
       wrapped[name] = (...args: unknown[]): unknown => {
-        const converted = args.map((a, i) => {
-          if (paramTypes[i] === "pointer") {
-            if (typeof a === "number") {
-              return Deno.UnsafePointer.create(BigInt(a));
-            }
-            if (a instanceof ArrayBuffer || ArrayBuffer.isView(a)) {
-              const p = Deno.UnsafePointer.of(a as BufferSource);
-              if (p === null) return null;
-              return p;
-            }
-            if (a === null || a === undefined) return a;
-          }
-          if (
-            (paramTypes[i] === "usize" || paramTypes[i] === "isize" ||
-              paramTypes[i] === "u64" || paramTypes[i] === "i64") &&
-            typeof a === "number"
-          ) {
-            return BigInt(a);
-          }
-          return a;
-        });
+        const converted = args.map((a, i) =>
+          convertArgToDeno(a, sym.bunParamTypes[i])
+        );
         const result = fn(...converted);
-        const resultType = denoSymbols[name].result;
-        if (typeof result === "bigint") {
-          if (
-            resultType === "u64" || resultType === "i64" ||
-            resultType === "usize" || resultType === "isize"
-          ) {
-            return result;
-          }
-          return Number(result);
-        }
-        if (
-          typeof result === "object" && result !== null &&
-          denoSymbols[name].result === "pointer"
-        ) {
-          return Number(
-            Deno.UnsafePointer.value(
-              result as Parameters<typeof Deno.UnsafePointer.value>[0],
-            ),
-          );
-        }
-        return result;
+        return convertReturnFromDeno(result, sym.bunResultType);
       };
     }
   }
+
   return { symbols: wrapped, close: () => lib.close() };
 }
 
-/**
- * Get a pointer value (`number`) for an `ArrayBuffer` or `ArrayBufferView`.
- *
- * Equivalent to Bun's `ptr()` — returns `0` for null pointers.
- */
+// --- ptr ---
+
 export function ptr(buffer: ArrayBuffer | ArrayBufferView): Pointer {
   const p = Deno.UnsafePointer.of(buffer as BufferSource);
   if (p === null) return 0 as Pointer;
   return Number(Deno.UnsafePointer.value(p)) as Pointer;
 }
 
-/**
- * Read an `ArrayBuffer` from a raw pointer address.
- *
- * @param pointer The pointer address (as a `number`).
- * @param byteOffset Byte offset into the memory region.
- * @param length Number of bytes to read.
- */
+// --- toArrayBuffer ---
+
 export function toArrayBuffer(
   pointer: Pointer,
   byteOffset: number,
@@ -247,45 +299,33 @@ export function toArrayBuffer(
   return view.getArrayBuffer(length, byteOffset);
 }
 
+// --- JSCallback ---
+
 interface JSCallbackOptions {
-  args: (string | typeof FFITypeValues[keyof typeof FFITypeValues])[];
-  returns?: string | typeof FFITypeValues[keyof typeof FFITypeValues];
+  args: (string | FFITypeValue)[];
+  returns?: string | FFITypeValue;
 }
 
-/**
- * Wraps a JavaScript function as a native FFI callback, matching Bun's
- * `JSCallback` API. Converts `BigInt` arguments to `number` before
- * invoking the wrapped function.
- *
- * @example
- * ```ts
- * const cb = new JSCallback((x) => x * 2, { args: ["i32"], returns: "i32" });
- * // pass cb.ptr to native code expecting a function pointer
- * cb.close(); // free when done
- * ```
- */
 export class JSCallback {
   private _callback: Deno.UnsafeCallback;
   private _ptr: Pointer;
 
-  constructor(fn: (...args: unknown[]) => void, options: JSCallbackOptions) {
-    const parameters = options.args.map((a) =>
-      convertArg(a)
+  constructor(fn: (...args: unknown[]) => unknown, options: JSCallbackOptions) {
+    const bunParamTypes = options.args.map((a) => resolveType(a));
+    const bunResultType = options.returns
+      ? resolveType(options.returns)
+      : "void";
+    const parameters = bunParamTypes.map((t) =>
+      convertType(t)
     ) as DenoNativeType[];
-    const result = convertType(
-      options.returns
-        ? (typeof options.returns === "string"
-          ? options.returns
-          : options.returns)
-        : "void",
-    ) as DenoNativeType;
+    const result = convertType(bunResultType) as DenoNativeType;
 
     const wrappedFn = (...args: unknown[]): unknown => {
-      const converted = args.map((a, i) => {
-        if (typeof a === "bigint") return Number(a);
-        return a;
-      });
-      return fn(...converted);
+      const converted = args.map((a, i) =>
+        convertCallbackArgFromDeno(a, bunParamTypes[i])
+      );
+      const returnValue = fn(...converted);
+      return convertCallbackReturnToDeno(returnValue, bunResultType);
     };
 
     // @ts-expect-error Dynamic construction doesn't match strict Deno types
@@ -306,7 +346,6 @@ export class JSCallback {
   }
 }
 
-/** Platform-appropriate shared library suffix (`"dylib"`, `"so"`, or `"dll"`). */
 export const suffix: string = Deno.build.os === "darwin"
   ? "dylib"
   : Deno.build.os === "windows"
