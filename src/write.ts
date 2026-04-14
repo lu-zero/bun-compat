@@ -24,6 +24,13 @@ function toUint8Array(
   throw new TypeError("Unsupported data type for Bun.write");
 }
 
+/**
+ * Write data to a file, creating parent directories automatically.
+ *
+ * **Limitation**: Only supports `string`, `Uint8Array`, `ArrayBuffer`,
+ * and `Blob` inputs. Bun's `Bun.write()` also accepts `ReadableStream`,
+ * `Response`, and `BunFile` — these are not yet implemented.
+ */
 export async function write(
   destination: string | URL,
   data: string | Uint8Array | ArrayBuffer | Blob,

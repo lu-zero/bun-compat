@@ -25,6 +25,8 @@ import { stringWidth, wrapAnsi } from "./string-width.ts";
 import { password } from "./password.ts";
 import { fileURLToPath } from "./url.ts";
 import { CryptoHasher } from "./crypto-hasher.ts";
+import { stripANSI } from "./strip-ansi.ts";
+import { inspect, gc, generateHeapSnapshot } from "./from-bun.ts";
 
 const BunShim = {
   env,
@@ -51,6 +53,10 @@ const BunShim = {
   password,
   fileURLToPath,
   CryptoHasher,
+  stripANSI,
+  inspect,
+  gc,
+  generateHeapSnapshot,
 } as Record<string, unknown>;
 
 export default BunShim;

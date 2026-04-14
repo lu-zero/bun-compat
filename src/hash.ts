@@ -245,6 +245,31 @@ function hashCallable(
 
 (hashCallable as Record<string, unknown>).xxHash64 = xxHash64Impl;
 (hashCallable as Record<string, unknown>).xxHash32 = xxHash32Impl;
-(hashCallable as Record<string, unknown>).wyhash = xxHash64Impl;
+
+/**
+ * wyhash implementation.
+ *
+ * Attempts to load the native WASM wyhash module (built via wasmbuild
+ * from the `wyhash` Rust crate). Falls back to xxHash64 if the WASM
+ * module is unavailable. The WASM version produces correct wyhash
+ * values; the xxHash64 fallback produces different output.
+ */
+let wyhashImpl: (input: Uint8Array | string, seed?: number) => bigint =
+  xxHash64Impl;
+
+try {
+  // deno-lint-ignore no-sloppy-imports
+  const wasm = await import("./wasm/wyhash_wasm.js");
+  const prev = wyhashImpl;
+  wyhashImpl = (input: Uint8Array | string, seed?: number): bigint => {
+    const data =
+      typeof input === "string" ? new TextEncoder().encode(input) : input;
+    return wasm.wyhash(data, BigInt(seed ?? 0));
+  };
+} catch {
+  // WASM wyhash not available, using xxHash64 fallback
+}
+
+(hashCallable as Record<string, unknown>).wyhash = wyhashImpl;
 
 export const hash = hashCallable as HashCallable;

@@ -38,6 +38,15 @@ export class Glob {
     return results;
   }
 
+  /**
+   * Synchronous glob scan.
+   *
+   * **Limitation**: Simplified implementation using `node:fs.readdirSync`.
+   * Handles `*`, `?`, and `**` patterns but may not match Bun's exact
+   * behavior for character classes (`[abc]`), brace expansion (`{a,b}`),
+   * or negation (`!pattern`). For full glob semantics, use the async
+   * `scan()` which delegates to `@std/fs expandGlob`.
+   */
   *scanSync(opts?: GlobScanOptions): Iterable<string> {
     const cwd = opts?.cwd ?? Deno.cwd();
     const root = nodePath.resolve(cwd);

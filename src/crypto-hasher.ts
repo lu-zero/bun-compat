@@ -1,4 +1,16 @@
+/**
+ * Synchronous cryptographic hasher compatible with Bun's `Bun.CryptoHasher`.
+ *
+ * Uses `node:crypto` under the hood. Supports SHA-1, MD5, SHA-256,
+ * SHA-384, and SHA-512. Algorithms `xxhash64` and `wyhash` are accepted
+ * but mapped to their Node.js equivalents (not real xxHash/wyhash).
+ *
+ * **Limitation**: `digest(encoding?)` without arguments returns
+ * `Uint8Array` instead of Bun's `Buffer`. `digestSync()` is identical
+ * to `digest()` since `node:crypto` is synchronous.
+ */
 import * as nodeCrypto from "node:crypto";
+import type { Buffer } from "node:buffer";
 
 export class CryptoHasher {
   #hash: nodeCrypto.Hash;

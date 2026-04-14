@@ -29,7 +29,9 @@ function generateSalt(len: number = 16): Uint8Array {
 }
 
 function toHex(data: Uint8Array): string {
-  return Array.from(data).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(data)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function fromHex(hex: string): Uint8Array {
@@ -40,6 +42,16 @@ function fromHex(hex: string): Uint8Array {
   return data;
 }
 
+/**
+ * Password hashing and verification.
+ *
+ * **Limitation**: All algorithms (bcrypt, argon2id, argon2d, argon2i)
+ * are implemented using PBKDF2-SHA256. Hashes produced here are
+ * **NOT compatible** with real Bun's bcrypt or argon2 output.
+ * They use a custom `$algorithm$salt$hash` format that only this
+ * shim can verify. Do not use for interoperability with Bun-native
+ * hashed passwords.
+ */
 export const password: {
   hash(password: string, algorithm?: string): Promise<string>;
   verify(password: string, hashed: string): Promise<boolean>;
@@ -51,7 +63,8 @@ export const password: {
       return `$bcrypt$${toHex(salt)}$${toHex(hash)}`;
     }
     if (
-      algorithm === "argon2id" || algorithm === "argon2d" ||
+      algorithm === "argon2id" ||
+      algorithm === "argon2d" ||
       algorithm === "argon2i"
     ) {
       const salt = generateSalt(16);
