@@ -1,6 +1,7 @@
 const _envProxy = new Proxy({} as Record<string, string>, {
   get(_target, prop: string) {
-    return Deno.env.get(prop) ?? "";
+    const val = Deno.env.get(prop);
+    return val === undefined ? undefined : val;
   },
   set(_target, prop: string, value: string) {
     Deno.env.set(prop, value);

@@ -49,8 +49,8 @@ async function runShell(
     args: shellArgs,
     cwd: config.cwd,
     env: config.env,
-    stdout: config.quiet ? "null" : "piped",
-    stderr: config.quiet ? "null" : "piped",
+    stdout: "piped",
+    stderr: "piped",
     stdin: config.input !== undefined ? "piped" : "inherit",
   };
 
@@ -59,9 +59,10 @@ async function runShell(
   if (config.input !== undefined) {
     const child = command.spawn();
     if (child.stdin) {
-      const data = typeof config.input === "string"
-        ? new TextEncoder().encode(config.input)
-        : config.input;
+      const data =
+        typeof config.input === "string"
+          ? new TextEncoder().encode(config.input)
+          : config.input;
       const writer = child.stdin.getWriter();
       await writer.write(data);
       writer.releaseLock();
@@ -85,8 +86,8 @@ async function runShell(
   }
 
   const output = await command.output();
-  const stdout = config.quiet ? new Uint8Array(0) : output.stdout;
-  const stderr = config.quiet ? new Uint8Array(0) : output.stderr;
+  const stdout = output.stdout;
+  const stderr = output.stderr;
   const result = new ShellResultImpl(
     stdout,
     stderr,
@@ -142,6 +143,18 @@ class ShellPromise {
 
   input(data: string | Uint8Array): ShellPromise {
     return new ShellPromise(this.#commandStr, { ...this.#config, input: data });
+  }
+
+  text(): Promise<string> {
+    return this.#run().then((r) => r.text());
+  }
+
+  json(): Promise<any> {
+    return this.#run().then((r) => r.json());
+  }
+
+  lines(): Promise<string[]> {
+    return this.#run().then((r) => r.lines());
   }
 
   then<TResult1, TResult2>(

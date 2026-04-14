@@ -102,8 +102,10 @@ class BunServerImpl implements BunServer {
 }
 
 export function serve(opts: ServeOptions): BunServer {
+  let serverRef: Deno.HttpServer | null = null;
+
   const handler = async (req: Request): Promise<Response> => {
-    const bunServer = new BunServerImpl(dummyServer);
+    const bunServer = new BunServerImpl(serverRef!);
     try {
       return await opts.fetch(req, bunServer);
     } catch (err) {
@@ -111,17 +113,13 @@ export function serve(opts: ServeOptions): BunServer {
     }
   };
 
-  const ac = new AbortController();
-
   const httpServer = Deno.serve({
     port: opts.port ?? 0,
     hostname: opts.hostname ?? "0.0.0.0",
     handler,
-    signal: ac.signal,
-    onListen: () => {},
   });
 
-  const dummyServer = httpServer;
+  serverRef = httpServer;
 
   return new BunServerImpl(httpServer);
 }

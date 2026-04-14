@@ -47,16 +47,15 @@ export class Subprocess<
 
   constructor(child: Deno.ChildProcess) {
     this.#child = child;
-    this.#exitPromise = this.#child.status.then(async (s) => {
-      this.#exitCode = s.code;
-      try {
-        child.stdin?.close();
-      } catch {}
-      try {
-        if (child.stderr) await child.stderr.cancel();
-      } catch {}
-      return s.code;
-    });
+    this.#exitPromise = this.#child.status
+      .then((s) => {
+        this.#exitCode = s.code;
+        return s.code;
+      })
+      .catch((e) => {
+        this.#exitCode = typeof e?.code === "number" ? e.code : 1;
+        return this.#exitCode;
+      });
   }
 
   get pid(): number {
@@ -117,6 +116,12 @@ export function spawn(
     cmd = (cmdOrOpts as SpawnOptions).cmd ?? [];
   }
 
+  const hasBinaryStdin =
+    spawnOpts.stdin instanceof Uint8Array || spawnOpts.stdin instanceof Blob;
+  const stdinMode = hasBinaryStdin
+    ? "piped"
+    : (mapStdio(spawnOpts.stdin as string) as "piped" | "inherit" | "null");
+
   const denoOpts: Deno.CommandOptions = {
     args: cmd.slice(1),
     cwd: spawnOpts.cwd,
@@ -128,7 +133,7 @@ export function spawn(
       | "piped"
       | "inherit"
       | "null",
-    stdin: mapStdio(spawnOpts.stdin as string) as "piped" | "inherit" | "null",
+    stdin: stdinMode,
   };
 
   if (spawnOpts.env) {
@@ -137,6 +142,27 @@ export function spawn(
 
   const command = new Deno.Command(cmd[0], denoOpts);
   const child = command.spawn();
+
+  if (hasBinaryStdin && child.stdin) {
+    const data =
+      spawnOpts.stdin instanceof Blob
+        ? new Uint8Array(spawnOpts.stdin.stream().readable ? 0 : 0)
+        : (spawnOpts.stdin as Uint8Array);
+    const writer = child.stdin.getWriter();
+    void (async () => {
+      try {
+        if (spawnOpts.stdin instanceof Blob) {
+          const buf = await spawnOpts.stdin.arrayBuffer();
+          await writer.write(new Uint8Array(buf));
+        } else {
+          await writer.write(spawnOpts.stdin as Uint8Array);
+        }
+      } finally {
+        writer.releaseLock();
+        child.stdin!.close();
+      }
+    })();
+  }
 
   return new Subprocess(child);
 }
@@ -150,14 +176,14 @@ export function spawnSync(
     cwd: opts?.cwd,
     stdout:
       (mapStdio(opts?.stdout as string) as "piped" | "inherit" | "null") ===
-          "inherit"
+      "inherit"
         ? "piped"
-        : mapStdio(opts?.stdout as string) as "piped" | "inherit" | "null",
+        : (mapStdio(opts?.stdout as string) as "piped" | "inherit" | "null"),
     stderr:
       (mapStdio(opts?.stderr as string) as "piped" | "inherit" | "null") ===
-          "inherit"
+      "inherit"
         ? "piped"
-        : mapStdio(opts?.stderr as string) as "piped" | "inherit" | "null",
+        : (mapStdio(opts?.stderr as string) as "piped" | "inherit" | "null"),
   };
 
   if (opts?.env) {
