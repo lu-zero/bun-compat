@@ -33,7 +33,9 @@ export class CryptoHasher {
   }
 
   update(data: string | Uint8Array | ArrayBuffer | Buffer): this {
-    this.#hash.update(data as string | Uint8Array | ArrayBuffer | Buffer);
+    this.#hash.update(
+      data instanceof ArrayBuffer ? new Uint8Array(data) : data,
+    );
     return this;
   }
 

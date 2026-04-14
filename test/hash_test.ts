@@ -19,8 +19,10 @@ Deno.test("hash - xxHash64 with seed", () => {
   assertEquals(a !== b, true);
 });
 
-Deno.test("hash - wyhash delegates to xxHash64", () => {
-  assertEquals(hash.wyhash("abc"), hash.xxHash64("abc"));
+Deno.test("hash - wyhash returns bigint", () => {
+  const result = hash.wyhash("abc");
+  assertEquals(typeof result, "bigint");
+  assertEquals(result > 0n, true);
 });
 
 Deno.test("hash - xxHash64 Uint8Array", () => {

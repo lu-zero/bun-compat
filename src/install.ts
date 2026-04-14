@@ -26,7 +26,7 @@ import { password } from "./password.ts";
 import { fileURLToPath } from "./url.ts";
 import { CryptoHasher } from "./crypto-hasher.ts";
 import { stripANSI } from "./strip-ansi.ts";
-import { inspect, gc, generateHeapSnapshot } from "./from-bun.ts";
+import { gc, generateHeapSnapshot, inspect } from "./from-bun.ts";
 
 const BunShim = {
   env,

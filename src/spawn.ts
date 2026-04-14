@@ -118,8 +118,8 @@ export function spawn(
     cmd = (cmdOrOpts as SpawnOptions).cmd ?? [];
   }
 
-  const hasBinaryStdin =
-    spawnOpts.stdin instanceof Uint8Array || spawnOpts.stdin instanceof Blob;
+  const hasBinaryStdin = spawnOpts.stdin instanceof Uint8Array ||
+    spawnOpts.stdin instanceof Blob;
   const stdinMode = hasBinaryStdin
     ? "piped"
     : (mapStdio(spawnOpts.stdin as string) as "piped" | "inherit" | "null");
@@ -146,10 +146,9 @@ export function spawn(
   const child = command.spawn();
 
   if (hasBinaryStdin && child.stdin) {
-    const data =
-      spawnOpts.stdin instanceof Blob
-        ? new Uint8Array(0)
-        : (spawnOpts.stdin as Uint8Array);
+    const data = spawnOpts.stdin instanceof Blob
+      ? new Uint8Array(0)
+      : (spawnOpts.stdin as Uint8Array);
     const writer = child.stdin.getWriter();
     void (async () => {
       try {
@@ -178,12 +177,12 @@ export function spawnSync(
     cwd: opts?.cwd,
     stdout:
       (mapStdio(opts?.stdout as string) as "piped" | "inherit" | "null") ===
-      "inherit"
+          "inherit"
         ? "piped"
         : (mapStdio(opts?.stdout as string) as "piped" | "inherit" | "null"),
     stderr:
       (mapStdio(opts?.stderr as string) as "piped" | "inherit" | "null") ===
-      "inherit"
+          "inherit"
         ? "piped"
         : (mapStdio(opts?.stderr as string) as "piped" | "inherit" | "null"),
   };

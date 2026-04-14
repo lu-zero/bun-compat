@@ -22,10 +22,12 @@ export class Glob {
     const root = path.resolve(cwd);
     const results: string[] = [];
 
-    for await (const entry of expandGlob(this.#pattern, {
-      root,
-      includeDirs: opts?.onlyFiles === true ? false : true,
-    })) {
+    for await (
+      const entry of expandGlob(this.#pattern, {
+        root,
+        includeDirs: opts?.onlyFiles === true ? false : true,
+      })
+    ) {
       const relative = path.relative(root, entry.path);
       if (!opts?.dot && path.basename(entry.path).startsWith(".")) continue;
       if (opts?.absolute) {

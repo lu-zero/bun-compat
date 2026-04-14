@@ -4,8 +4,8 @@ Bun API polyfill for Deno. Implements the Bun global surface using Deno native
 APIs so that code written for Bun can run on Deno without modification.
 
 > **Warning**: This codebase was largely AI-generated and has not yet been
-> thoroughly audited. It may contain bugs, incomplete API coverage, or surprising
-> edge-case behaviour. Use at your own risk and please report issues.
+> thoroughly audited. It may contain bugs, incomplete API coverage, or
+> surprising edge-case behaviour. Use at your own risk and please report issues.
 
 This project was developed primarily using
 [glm-5.1](https://docs.z.ai/guides/llm/glm-5.1) from Zhipu AI and
@@ -101,7 +101,8 @@ returns `Uint8Array` instead of Bun's `Buffer`.
 Simplified implementation using `node:fs.readdirSync`. Handles `*`, `?`, and
 `**` patterns but may not match Bun's exact behavior for character classes
 (`[abc]`), brace expansion (`{a,b}`), or negation (`!pattern`). For full glob
-semantics, use the async `scan()` method which delegates to `@std/fs expandGlob`.
+semantics, use the async `scan()` method which delegates to
+`@std/fs expandGlob`.
 
 ### `Bun.gc()` / `Bun.generateHeapSnapshot()`
 
@@ -115,24 +116,23 @@ not work. These stubs exist only to prevent runtime crashes.
 behavior where the callable form returns a non-cryptographic number. The named
 methods `xxHash64()` and `wyhash()` return `bigint`.
 
-Note: some Bun code uses `Bun.nanoseconds()` (bigint) in arithmetic with
-number literals (e.g. `(now - prev) / 1e6`). Bun's runtime handles this
-implicitly, but standard JS engines throw "Cannot mix BigInt and other types".
-Downstream compat layers should override `Bun.nanoseconds` to return `number`
-if needed.
+Note: some Bun code uses `Bun.nanoseconds()` (bigint) in arithmetic with number
+literals (e.g. `(now - prev) / 1e6`). Bun's runtime handles this implicitly, but
+standard JS engines throw "Cannot mix BigInt and other types". Downstream compat
+layers should override `Bun.nanoseconds` to return `number` if needed.
 
 ### `Database` (SQLite)
 
 Wraps `node:sqlite` `DatabaseSync`. `Statement.columnNames` is derived from
-`columns().map(c => c.name)`. `Statement.paramsCount` parses the SQL source
-(it is not exposed by `DatabaseSync`). `Statement.finalize()` is a no-op
+`columns().map(c => c.name)`. `Statement.paramsCount` parses the SQL source (it
+is not exposed by `DatabaseSync`). `Statement.finalize()` is a no-op
 (`DatabaseSync` has no `finalize`). `Database.transaction()` uses manual
 `BEGIN`/`COMMIT`/`ROLLBACK` instead of Bun's optimized compiled transaction.
 
 ### `Bun.listen()` / `Bun.connect()`
 
-Implements the socket handler pattern (`open`, `data`, `close`, `error`) used
-by the DAP debug adapter protocol. Not a complete Bun.Socket implementation.
+Implements the socket handler pattern (`open`, `data`, `close`, `error`) used by
+the DAP debug adapter protocol. Not a complete Bun.Socket implementation.
 
 ## WASM Native Modules
 

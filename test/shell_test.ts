@@ -14,10 +14,10 @@ Deno.test("$ - nothrow on failure", async () => {
   assertEquals(result.exitCode, 1);
 });
 
-Deno.test("$ - quiet suppresses output", async () => {
+Deno.test("$ - quiet captures output without terminal display", async () => {
   const result = await $`echo hidden`.quiet();
   assertEquals(result.exitCode, 0);
-  assertEquals(result.stdout.length, 0);
+  assertEquals(result.text().trim(), "hidden");
 });
 
 Deno.test("$ - cwd option", async () => {

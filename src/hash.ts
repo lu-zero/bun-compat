@@ -36,8 +36,9 @@ function xxHash64Impl(
   input: Uint8Array | string,
   seed: bigint | number = 0,
 ): bigint {
-  const data =
-    typeof input === "string" ? new TextEncoder().encode(input) : input;
+  const data = typeof input === "string"
+    ? new TextEncoder().encode(input)
+    : input;
   const len = data.length;
   const seedN = BigInt(seed) & M;
   let h64: bigint;
@@ -81,8 +82,7 @@ function xxHash64Impl(
   }
 
   if (i + 4 <= len) {
-    const val =
-      BigInt(data[i]) |
+    const val = BigInt(data[i]) |
       (BigInt(data[i + 1]) << 8n) |
       (BigInt(data[i + 2]) << 16n) |
       (BigInt(data[i + 3]) << 24n);
@@ -116,8 +116,9 @@ const XXH32_PRIME4 = 0x27d4eb2f;
 const XXH32_PRIME5 = 0x165667b1;
 
 function xxHash32Impl(input: Uint8Array | string, seed: number = 0): number {
-  const data =
-    typeof input === "string" ? new TextEncoder().encode(input) : input;
+  const data = typeof input === "string"
+    ? new TextEncoder().encode(input)
+    : input;
   const len = data.length;
 
   function rotl32(x: number, r: number): number {
@@ -138,10 +139,10 @@ function xxHash32Impl(input: Uint8Array | string, seed: number = 0): number {
       v1 = rotl32(
         (v1 +
           ((data[i] |
-            (data[i + 1] << 8) |
-            (data[i + 2] << 16) |
-            (data[i + 3] << 24)) >>>
-            0) *
+              (data[i + 1] << 8) |
+              (data[i + 2] << 16) |
+              (data[i + 3] << 24)) >>>
+              0) *
             XXH32_PRIME2) >>>
           0,
         13,
@@ -151,10 +152,10 @@ function xxHash32Impl(input: Uint8Array | string, seed: number = 0): number {
       v2 = rotl32(
         (v2 +
           ((data[i] |
-            (data[i + 1] << 8) |
-            (data[i + 2] << 16) |
-            (data[i + 3] << 24)) >>>
-            0) *
+              (data[i + 1] << 8) |
+              (data[i + 2] << 16) |
+              (data[i + 3] << 24)) >>>
+              0) *
             XXH32_PRIME2) >>>
           0,
         13,
@@ -164,10 +165,10 @@ function xxHash32Impl(input: Uint8Array | string, seed: number = 0): number {
       v3 = rotl32(
         (v3 +
           ((data[i] |
-            (data[i + 1] << 8) |
-            (data[i + 2] << 16) |
-            (data[i + 3] << 24)) >>>
-            0) *
+              (data[i + 1] << 8) |
+              (data[i + 2] << 16) |
+              (data[i + 3] << 24)) >>>
+              0) *
             XXH32_PRIME2) >>>
           0,
         13,
@@ -177,10 +178,10 @@ function xxHash32Impl(input: Uint8Array | string, seed: number = 0): number {
       v4 = rotl32(
         (v4 +
           ((data[i] |
-            (data[i + 1] << 8) |
-            (data[i + 2] << 16) |
-            (data[i + 3] << 24)) >>>
-            0) *
+              (data[i + 1] << 8) |
+              (data[i + 2] << 16) |
+              (data[i + 3] << 24)) >>>
+              0) *
             XXH32_PRIME2) >>>
           0,
         13,
@@ -189,8 +190,8 @@ function xxHash32Impl(input: Uint8Array | string, seed: number = 0): number {
       i += 4;
     }
 
-    h32 =
-      (rotl32(v1, 1) + rotl32(v2, 7) + rotl32(v3, 12) + rotl32(v4, 18)) >>> 0;
+    h32 = (rotl32(v1, 1) + rotl32(v2, 7) + rotl32(v3, 12) + rotl32(v4, 18)) >>>
+      0;
   } else {
     h32 = (seed + XXH32_PRIME5) >>> 0;
   }
@@ -199,25 +200,24 @@ function xxHash32Impl(input: Uint8Array | string, seed: number = 0): number {
 
   let i = len - (len % 16);
   for (; i + 4 <= len; i += 4) {
-    h32 =
-      (rotl32(
-        (h32 +
-          ((data[i] |
+    h32 = (rotl32(
+      (h32 +
+        ((data[i] |
             (data[i + 1] << 8) |
             (data[i + 2] << 16) |
             (data[i + 3] << 24)) >>>
             0) *
-            XXH32_PRIME3) >>>
-          0,
-        17,
-      ) *
-        XXH32_PRIME4) >>>
+          XXH32_PRIME3) >>>
+        0,
+      17,
+    ) *
+      XXH32_PRIME4) >>>
       0;
   }
 
   while (i < len) {
-    h32 =
-      (rotl32((h32 + data[i] * XXH32_PRIME5) >>> 0, 11) * XXH32_PRIME1) >>> 0;
+    h32 = (rotl32((h32 + data[i] * XXH32_PRIME5) >>> 0, 11) * XXH32_PRIME1) >>>
+      0;
     i++;
   }
 
@@ -243,8 +243,8 @@ function hashCallable(
   return xxHash32Impl(input as string | Uint8Array, s);
 }
 
-(hashCallable as Record<string, unknown>).xxHash64 = xxHash64Impl;
-(hashCallable as Record<string, unknown>).xxHash32 = xxHash32Impl;
+(hashCallable as unknown as Record<string, unknown>).xxHash64 = xxHash64Impl;
+(hashCallable as unknown as Record<string, unknown>).xxHash32 = xxHash32Impl;
 
 /**
  * wyhash implementation.
@@ -262,14 +262,15 @@ try {
   const wasm = await import("./wasm/wyhash_wasm.js");
   const prev = wyhashImpl;
   wyhashImpl = (input: Uint8Array | string, seed?: number): bigint => {
-    const data =
-      typeof input === "string" ? new TextEncoder().encode(input) : input;
+    const data = typeof input === "string"
+      ? new TextEncoder().encode(input)
+      : input;
     return wasm.wyhash(data, BigInt(seed ?? 0));
   };
 } catch {
   // WASM wyhash not available, using xxHash64 fallback
 }
 
-(hashCallable as Record<string, unknown>).wyhash = wyhashImpl;
+(hashCallable as unknown as Record<string, unknown>).wyhash = wyhashImpl;
 
 export const hash = hashCallable as HashCallable;

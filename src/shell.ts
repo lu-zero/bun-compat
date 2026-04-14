@@ -12,7 +12,7 @@ class ShellBytes extends Uint8Array {
   #decoded?: string;
 
   constructor(data: Uint8Array) {
-    super(data.buffer, data.byteOffset, data.byteLength);
+    super(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength);
   }
 
   override toString(): string {
@@ -77,10 +77,9 @@ async function runShell(
   if (config.input !== undefined) {
     const child = command.spawn();
     if (child.stdin) {
-      const data =
-        typeof config.input === "string"
-          ? new TextEncoder().encode(config.input)
-          : config.input;
+      const data = typeof config.input === "string"
+        ? new TextEncoder().encode(config.input)
+        : config.input;
       const writer = child.stdin.getWriter();
       await writer.write(data);
       writer.releaseLock();
