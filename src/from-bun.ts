@@ -28,6 +28,7 @@ export { fileURLToPath, pathToFileURL } from "./url.ts";
 export { which } from "./which.ts";
 export { nanoseconds } from "./time.ts";
 export { Database } from "./sqlite.ts";
+export { CryptoHasher } from "./crypto-hasher.ts";
 export {
   dlopen,
   FFIType,

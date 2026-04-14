@@ -8,13 +8,31 @@ export interface ShellResult {
   lines(): string[];
 }
 
+class ShellBytes extends Uint8Array {
+  #decoded?: string;
+
+  constructor(data: Uint8Array) {
+    super(data.buffer, data.byteOffset, data.byteLength);
+  }
+
+  override toString(): string {
+    if (this.#decoded === undefined) {
+      this.#decoded = new TextDecoder().decode(this);
+    }
+    return this.#decoded;
+  }
+}
+
 class ShellResultImpl implements ShellResult {
   constructor(
     public readonly stdout: Uint8Array,
     public readonly stderr: Uint8Array,
     public readonly exitCode: number,
     public readonly success: boolean,
-  ) {}
+  ) {
+    this.stdout = new ShellBytes(stdout);
+    this.stderr = new ShellBytes(stderr);
+  }
 
   text(): string {
     return new TextDecoder().decode(this.stdout);

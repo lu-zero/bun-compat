@@ -49,12 +49,14 @@ export class Subprocess<
     this.#child = child;
     this.#exitPromise = this.#child.status
       .then((s) => {
-        this.#exitCode = s.code;
-        return s.code;
+        const code = s.code ?? 1;
+        this.#exitCode = code;
+        return code;
       })
       .catch((e) => {
-        this.#exitCode = typeof e?.code === "number" ? e.code : 1;
-        return this.#exitCode;
+        const code = typeof e?.code === "number" ? e.code : 1;
+        this.#exitCode = code;
+        return code;
       });
   }
 
@@ -146,7 +148,7 @@ export function spawn(
   if (hasBinaryStdin && child.stdin) {
     const data =
       spawnOpts.stdin instanceof Blob
-        ? new Uint8Array(spawnOpts.stdin.stream().readable ? 0 : 0)
+        ? new Uint8Array(0)
         : (spawnOpts.stdin as Uint8Array);
     const writer = child.stdin.getWriter();
     void (async () => {
