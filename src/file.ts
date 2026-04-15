@@ -11,6 +11,40 @@ function mimeType(p: string): string {
   return contentType(path.extname(p)) || "application/octet-stream";
 }
 
+export class FileSink {
+  #file: Deno.FsFile;
+  #path: string;
+
+  constructor(path: string) {
+    this.#path = path;
+    this.#file = Deno.openSync(path, {
+      write: true,
+      create: true,
+      append: true,
+    });
+  }
+
+  write(data: string | Uint8Array): number {
+    const bytes = typeof data === "string"
+      ? new TextEncoder().encode(data)
+      : data;
+    const n = this.#file.writeSync(bytes);
+    return n;
+  }
+
+  flush(): number | undefined {
+    this.#file.syncSync();
+    return 0;
+  }
+
+  end(): void {
+    try {
+      this.#file.syncSync();
+    } catch {}
+    this.#file.close();
+  }
+}
+
 export class BunFile {
   #path: string;
 
@@ -58,7 +92,11 @@ export class BunFile {
     await write(this.#path, data);
   }
 
-  get writer(): WritableStream<Uint8Array> {
+  writer(): FileSink {
+    return new FileSink(this.#path);
+  }
+
+  get writable(): WritableStream<Uint8Array> {
     const writer = Deno.openSync(this.#path, {
       write: true,
       create: true,
