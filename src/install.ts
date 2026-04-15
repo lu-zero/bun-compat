@@ -27,6 +27,8 @@ import { fileURLToPath } from "./url.ts";
 import { CryptoHasher } from "./crypto-hasher.ts";
 import { stripANSI } from "./strip-ansi.ts";
 import { gc, generateHeapSnapshot, inspect } from "./from-bun.ts";
+import { Archive } from "./archive.ts";
+import { connect, listen } from "./socket.ts";
 
 const BunShim = {
   env,
@@ -57,6 +59,9 @@ const BunShim = {
   inspect,
   gc,
   generateHeapSnapshot,
+  Archive,
+  listen,
+  connect,
 } as Record<string, unknown>;
 
 export default BunShim;

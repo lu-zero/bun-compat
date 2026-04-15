@@ -11,7 +11,7 @@ export { $ } from "./shell.ts";
 export { Glob } from "./glob.ts";
 export { spawn, spawnSync } from "./spawn.ts";
 export type { Subprocess } from "./spawn.ts";
-export { BunFile, file } from "./file.ts";
+export { BunFile, file, FileSink } from "./file.ts";
 export { write } from "./write.ts";
 export { sleep } from "./sleep.ts";
 export { serve } from "./serve.ts";
@@ -27,8 +27,10 @@ export { JSONL } from "./parsers/jsonl.ts";
 export { fileURLToPath, pathToFileURL } from "./url.ts";
 export { which } from "./which.ts";
 export { nanoseconds } from "./time.ts";
-export { Database } from "./sqlite.ts";
+export { Database, type SQLQueryBindings, Statement } from "./sqlite.ts";
 export { CryptoHasher } from "./crypto-hasher.ts";
+export { Archive } from "./archive.ts";
+export { connect, listen } from "./socket.ts";
 /**
  * Strip ANSI escape codes from a string.
  *
