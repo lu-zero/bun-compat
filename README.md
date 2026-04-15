@@ -50,7 +50,8 @@ globalThis.Bun = BunShim;
 | `Bun.serve()`                                                                  | Wrapper                        | Wraps `Deno.serve()`                                                                                          |
 | `Bun.spawn()` / `Bun.spawnSync()`                                              | Wrapper                        | Via `Deno.Command`                                                                                            |
 | `Bun.$`                                                                        | Subprocess                     | Shell template tag; stdout/stderr have `.toString()` returning UTF-8                                          |
-| `Bun.file()`                                                                   | Wrapper                        | `Deno.open` / `Deno.FsFile` wrapper                                                                           |
+| `Bun.file()`                                                                   | Wrapper                        | `Deno.open` / `Deno.FsFile` wrapper. `writer()` returns `FileSink`                                            |
+| `FileSink`                                                                     | Wrapper                        | `Deno.FsFile` with synchronous `write()`/`flush()`/`end()`                                                    |
 | `Bun.write()`                                                                  | Wrapper                        | Auto-creates parent dirs. See limitations below                                                               |
 | `Bun.sleep()`                                                                  | Direct                         | `setTimeout` wrapper                                                                                          |
 | `Bun.stdin`                                                                    | Wrapper                        | `Deno.stdin` with `.text()`                                                                                   |
@@ -72,8 +73,10 @@ globalThis.Bun = BunShim;
 | `Bun.generateHeapSnapshot()`                                                   | Stub                           | Returns `{ error: "not supported" }`. Not possible under Deno                                                 |
 | `Bun.TOML` / `Bun.YAML` / `Bun.JSONC` / `Bun.JSON5` / `Bun.JSONL`              | `@std/*`                       | Parsers via Deno standard library                                                                             |
 | `Bun.fileURLToPath()` / `Bun.pathToFileURL()`                                  | Direct                         | URL ↔ path conversion                                                                                         |
-| `Database`                                                                     | `node:sqlite`                  | Bun SQLite API over `DatabaseSync`. See limitations below                                                     |
+| `Bun.Archive`                                                                  | Manual                         | Tar/gzip read and write. See limitations below                                                                |
+| `Database` / `Statement`                                                       | `node:sqlite`                  | Bun SQLite API over `DatabaseSync` with typed `prepare()`. See limitations below                              |
 | `dlopen()` / `ptr()` / `toArrayBuffer()` / `JSCallback` / `FFIType` / `suffix` | `Deno.dlopen`                  | Bun FFI over Deno FFI                                                                                         |
+| `CString`                                                                      | Manual                         | Null-terminated C string interop via `Deno.UnsafePointer`                                                     |
 | `defineStruct()` / `defineEnum()`                                              | Manual                         | Binary pack/unpack with alignment, pointer support                                                            |
 
 ## Limitations
@@ -136,6 +139,13 @@ is not exposed by `DatabaseSync`). `Statement.finalize()` is a no-op
 
 Implements the socket handler pattern (`open`, `data`, `close`, `error`) used by
 the DAP debug adapter protocol. Not a complete Bun.Socket implementation.
+
+### `Bun.Archive`
+
+Reads tar and tar+gzip archives. `Archive.write()` produces tar with optional
+gzip compression. Does not support other compression formats (bzip2, xz, zstd).
+Write mode does not preserve file permissions, ownership, or symlinks — all
+entries are written as regular files with zeroed metadata.
 
 ## WASM Native Modules
 

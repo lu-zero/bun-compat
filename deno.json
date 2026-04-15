@@ -1,13 +1,15 @@
 {
   "name": "@lu-zero/bun-compat",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "exports": {
     ".": "./src/index.ts",
     "./bun": "./src/from-bun.ts",
     "./install": "./src/install.ts",
     "./sqlite": "./src/sqlite.ts",
     "./ffi": "./src/ffi.ts",
-    "./ffi-structs": "./src/ffi-structs.ts"
+    "./ffi-structs": "./src/ffi-structs.ts",
+    "./archive": "./src/archive.ts",
+    "./socket": "./src/socket.ts"
   },
   "publish": {
     "exclude": ["test/", ".github/"]
