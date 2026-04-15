@@ -1,105 +1,152 @@
-/**
- * SQLite database wrapper compatible with Bun's `Database` API.
- *
- * Delegates to Deno's `node:sqlite` `DatabaseSync` under the hood,
- * exposing `query`, `run`, `exec`, `prepare`, `transaction`, and
- * `close` methods that match Bun's surface area.
- *
- * @example
- * ```ts
- * import { Database } from "bun:sqlite";
- * const db = new Database(":memory:");
- * db.run("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
- * db.query("INSERT INTO t (name) VALUES (?)", { $name: "alice" });
- * const rows = db.query("SELECT * FROM t").rows;
- * db.close();
- * ```
- *
- * @module
- */
-import {
-  DatabaseSync,
-  type StatementResultingChanges,
-  type StatementSync,
-} from "node:sqlite";
+import { DatabaseSync, type StatementSync } from "node:sqlite";
 
 type SqliteValue = string | number | bigint | Uint8Array | null;
 
-/** SQLite database wrapper matching Bun's `Database` API. */
+export type SQLQueryBindings =
+  | null
+  | undefined
+  | number
+  | string
+  | bigint
+  | Uint8Array
+  | boolean
+  | Record<string, SqliteValue>
+  | SqliteValue[];
+
+export class Statement<
+  Row = Record<string, SqliteValue>,
+  Bindings extends SQLQueryBindings = SQLQueryBindings,
+> {
+  #stmt: StatementSync;
+  #columnNames: string[] | null = null;
+
+  constructor(stmt: StatementSync) {
+    this.#stmt = stmt;
+  }
+
+  get(...params: SqliteValue[]): Row | undefined {
+    const result = this.#stmt.get(...params);
+    return result as Row | undefined;
+  }
+
+  all(...params: SqliteValue[]): Row[] {
+    return this.#stmt.all(...params) as Row[];
+  }
+
+  run(...params: SqliteValue[]): {
+    changes: number;
+    lastInsertRowid: number | bigint;
+  } {
+    return this.#stmt.run(...params) as {
+      changes: number;
+      lastInsertRowid: number | bigint;
+    };
+  }
+
+  get columnNames(): string[] {
+    if (this.#columnNames === null) {
+      this.#columnNames = this.#stmt.columns().map((c) => c.name);
+    }
+    return this.#columnNames;
+  }
+
+  get paramsCount(): number {
+    const sql = this.#stmt.sourceSQL ?? "";
+    let count = 0;
+    let inString = false;
+    let stringChar = "";
+    for (let i = 0; i < sql.length; i++) {
+      const ch = sql[i];
+      if (inString) {
+        if (ch === stringChar && sql[i - 1] !== "\\") inString = false;
+        continue;
+      }
+      if (ch === "'" || ch === '"') {
+        inString = true;
+        stringChar = ch;
+        continue;
+      }
+      if (ch === "?") count++;
+      if (ch === "$" || ch === ":" || ch === "@") {
+        const rest = sql.slice(i);
+        if (/^[$:@]\d+/.test(rest)) {
+          count++;
+          while (i < sql.length && /\d/.test(sql[i]!)) i++;
+          i--;
+        }
+      }
+    }
+    return count;
+  }
+
+  finalize(): void {}
+}
+
 export class Database {
   #db: DatabaseSync;
-  #open: boolean = true;
 
   constructor(
-    filename: string,
-    opts?: { create?: boolean; readonly?: boolean },
+    path: string,
+    options?: {
+      create?: boolean;
+      readwrite?: boolean;
+      readonly?: boolean;
+      strict?: boolean;
+    },
   ) {
-    this.#db = new DatabaseSync(filename, { open: opts?.create !== false });
+    this.#db = new DatabaseSync(path, {
+      open: options?.create !== false,
+      readOnly: options?.readonly,
+    });
   }
 
-  get sqlite(): DatabaseSync {
-    return this.#db;
-  }
-
-  query(
-    sql: string,
-    params?: Record<string, SqliteValue>,
-  ): { rows: Record<string, SqliteValue>[] } {
-    const stmt: StatementSync = this.#db.prepare(sql);
-    if (params) {
-      // deno-lint-ignore no-explicit-any
-      return {
-        rows: stmt.all(...[params] as any[]) as Record<string, SqliteValue>[],
-      };
-    }
-    return { rows: stmt.all() as Record<string, SqliteValue>[] };
+  prepare<
+    Row = Record<string, SqliteValue>,
+    Bindings extends SQLQueryBindings = SQLQueryBindings,
+  >(sql: string): Statement<Row, Bindings> {
+    return new Statement(this.#db.prepare(sql));
   }
 
   run(
     sql: string,
     params?: Record<string, SqliteValue>,
-  ): StatementResultingChanges {
-    const stmt: StatementSync = this.#db.prepare(sql);
-    if (params) {
-      // deno-lint-ignore no-explicit-any
-      return stmt.run(...[params] as any[]);
+  ): { changes: number; lastInsertRowid: number | bigint } {
+    if (!params && sql.includes(";")) {
+      this.exec(sql);
+      return { changes: 0, lastInsertRowid: 0n };
     }
-    return stmt.run();
+    const stmt = this.#db.prepare(sql);
+    if (params) {
+      return stmt.run(...Object.values(params)) as {
+        changes: number;
+        lastInsertRowid: number | bigint;
+      };
+    }
+    return stmt.run() as { changes: number; lastInsertRowid: number | bigint };
   }
 
-  exec(sql: string) {
+  exec(sql: string): void {
     this.#db.exec(sql);
   }
 
-  prepare(sql: string): StatementSync {
-    return this.#db.prepare(sql);
-  }
-
-  close() {
-    if (this.#open) {
-      this.#db.close();
-      this.#open = false;
-    }
+  close(): void {
+    this.#db.close();
   }
 
   get inTransaction(): boolean {
-    return ((this.#db as unknown as Record<string, unknown>)
-      .inTransaction as boolean) ??
-      false;
+    return this.#db.isTransaction;
   }
 
-  serialize(fn?: () => void) {
+  serialize(fn?: () => void): void {
     if (fn) fn();
   }
 
-  deserialize(fn?: () => void) {
+  deserialize(fn?: () => void): void {
     if (fn) fn();
   }
 
-  transaction(
-    fn: (...args: unknown[]) => unknown,
-  ): (...args: unknown[]) => unknown {
-    return (...args: unknown[]) => {
+  transaction<T extends (...args: any[]) => any>(fn: T): T {
+    const wrapper = (...args: Parameters<T>): ReturnType<T> => {
       this.#db.exec("BEGIN");
       try {
         const result = fn(...args);
@@ -110,5 +157,6 @@ export class Database {
         throw e;
       }
     };
+    return wrapper as T;
   }
 }
