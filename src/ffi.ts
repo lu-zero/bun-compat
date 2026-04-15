@@ -331,10 +331,9 @@ export class JSCallback {
     // @ts-expect-error Dynamic construction doesn't match strict Deno types
     this._callback = new Deno.UnsafeCallback({ parameters, result }, wrappedFn);
     const pointerObj = this._callback.pointer;
-    this._ptr =
-      (pointerObj === null
-        ? 0
-        : Number(Deno.UnsafePointer.value(pointerObj))) as Pointer;
+    this._ptr = (
+      pointerObj === null ? 0 : Number(Deno.UnsafePointer.value(pointerObj))
+    ) as Pointer;
   }
 
   get ptr(): Pointer {
@@ -351,3 +350,23 @@ export const suffix: string = Deno.build.os === "darwin"
   : Deno.build.os === "windows"
   ? "dll"
   : "so";
+
+export class CString {
+  #data: Uint8Array;
+  constructor(data: Uint8Array) {
+    this.#data = data;
+  }
+  toString(): string {
+    let end = this.#data.indexOf(0);
+    if (end === -1) end = this.#data.length;
+    return new TextDecoder().decode(this.#data.subarray(0, end));
+  }
+  get byteLength(): number {
+    return this.#data.byteLength;
+  }
+  get ptr(): Pointer {
+    const p = Deno.UnsafePointer.of(this.#data as unknown as BufferSource);
+    if (p === null) return 0 as Pointer;
+    return Number(Deno.UnsafePointer.value(p)) as Pointer;
+  }
+}
