@@ -1,5 +1,8 @@
 # @lu-zero/bun-compat
 
+[![JSR](https://jsr.io/badges/@lu-zero/bun-compat)](https://jsr.io/@lu-zero/bun-compat)
+[![CI](https://github.com/lu-zero/bun-compat/actions/workflows/ci.yml/badge.svg)](https://github.com/lu-zero/bun-compat/actions/workflows/ci.yml)
+
 Bun API polyfill for Deno. Implements the Bun global surface using Deno native
 APIs so that code written for Bun can run on Deno without modification.
 
