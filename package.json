@@ -1,6 +1,6 @@
 {
   "name": "bun-compat",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Bun API polyfill for Deno - identical surface, implemented via Deno native APIs",
   "type": "module",
   "main": "src/index.ts",
