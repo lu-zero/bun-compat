@@ -1,6 +1,17 @@
 import { DatabaseSync, type StatementSync } from "node:sqlite";
 
-type SqliteValue = string | number | bigint | Uint8Array | null;
+type SqliteValue = string | number | bigint | Uint8Array | boolean | null;
+
+type SqliteInputValue = string | number | bigint | Uint8Array | null;
+
+function toInput(v: SqliteValue): SqliteInputValue {
+  if (typeof v === "boolean") return v ? 1 : 0;
+  return v;
+}
+
+function toInputs(params: SqliteValue[]): SqliteInputValue[] {
+  return params.map(toInput);
+}
 
 export type SQLQueryBindings =
   | null
@@ -15,7 +26,7 @@ export type SQLQueryBindings =
 
 export class Statement<
   Row = Record<string, SqliteValue>,
-  Bindings extends SQLQueryBindings = SQLQueryBindings,
+  Bindings = SqliteValue[] | Record<string, SqliteValue>,
 > {
   #stmt: StatementSync;
   #columnNames: string[] | null = null;
@@ -25,19 +36,19 @@ export class Statement<
   }
 
   get(...params: SqliteValue[]): Row | undefined {
-    const result = this.#stmt.get(...params);
+    const result = this.#stmt.get(...toInputs(params));
     return result as Row | undefined;
   }
 
   all(...params: SqliteValue[]): Row[] {
-    return this.#stmt.all(...params) as Row[];
+    return this.#stmt.all(...toInputs(params)) as Row[];
   }
 
   run(...params: SqliteValue[]): {
     changes: number;
     lastInsertRowid: number | bigint;
   } {
-    return this.#stmt.run(...params) as {
+    return this.#stmt.run(...toInputs(params)) as {
       changes: number;
       lastInsertRowid: number | bigint;
     };
@@ -102,7 +113,7 @@ export class Database {
 
   prepare<
     Row = Record<string, SqliteValue>,
-    Bindings extends SQLQueryBindings = SQLQueryBindings,
+    Bindings = SqliteValue[] | Record<string, SqliteValue>,
   >(sql: string): Statement<Row, Bindings> {
     return new Statement(this.#db.prepare(sql));
   }
@@ -117,7 +128,7 @@ export class Database {
     }
     const stmt = this.#db.prepare(sql);
     if (params) {
-      return stmt.run(...Object.values(params)) as {
+      return stmt.run(...toInputs(Object.values(params))) as {
         changes: number;
         lastInsertRowid: number | bigint;
       };

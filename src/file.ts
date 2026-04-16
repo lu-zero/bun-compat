@@ -11,6 +11,48 @@ function mimeType(p: string): string {
   return contentType(path.extname(p)) || "application/octet-stream";
 }
 
+export interface BunStat {
+  size: number;
+  mtimeMs: number | null;
+  atimeMs: number | null;
+  ctimeMs: number | null;
+  birthtimeMs: number | null;
+  mode: number | null;
+  uid: number | null;
+  gid: number | null;
+  dev: number | null;
+  ino: number | bigint | null;
+  nlink: number | null;
+  rdev: number | null;
+  blksize: number | null;
+  blocks: number | null;
+  isFile(): boolean;
+  isDirectory(): boolean;
+  isSymlink(): boolean;
+}
+
+function toBunStat(info: Deno.FileInfo): BunStat {
+  return {
+    size: info.size,
+    mtimeMs: info.mtime ? info.mtime.getTime() : null,
+    atimeMs: info.atime ? info.atime.getTime() : null,
+    ctimeMs: info.ctime ? info.ctime.getTime() : null,
+    birthtimeMs: info.birthtime ? info.birthtime.getTime() : null,
+    mode: info.mode ?? null,
+    uid: info.uid ?? null,
+    gid: info.gid ?? null,
+    dev: info.dev ?? null,
+    ino: info.ino ?? null,
+    nlink: info.nlink ?? null,
+    rdev: info.rdev ?? null,
+    blksize: info.blksize ?? null,
+    blocks: info.blocks ?? null,
+    isFile: () => info.isFile,
+    isDirectory: () => info.isDirectory,
+    isSymlink: () => info.isSymlink,
+  };
+}
+
 export class FileSink {
   #file: Deno.FsFile;
   #path: string;
@@ -43,6 +85,10 @@ export class FileSink {
     } catch {}
     this.#file.close();
   }
+
+  ref(): void {}
+
+  unref(): void {}
 }
 
 export class BunFile {
@@ -118,12 +164,21 @@ export class BunFile {
     }
   }
 
-  async stat(): Promise<Deno.FileInfo | null> {
+  async stat(): Promise<BunStat | null> {
     try {
-      return await Deno.stat(this.#path);
+      const info = await Deno.stat(this.#path);
+      return toBunStat(info);
     } catch {
       return null;
     }
+  }
+
+  slice(start?: number, end?: number, contentType?: string): BunFile {
+    return new BunFile(this.#path);
+  }
+
+  async unlink(): Promise<void> {
+    await Deno.remove(this.#path);
   }
 }
 
