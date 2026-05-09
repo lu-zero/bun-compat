@@ -177,6 +177,9 @@ function convertArgToDeno(value: unknown, bunType: string): unknown {
     if (typeof value === "number") return BigInt(value);
     return value;
   }
+  if (bunType === "bool") {
+    return Boolean(value);
+  }
   return value;
 }
 
