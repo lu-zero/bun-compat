@@ -30,7 +30,7 @@ export type { SqliteRow, SqliteValue };
 export type SqliteBinding = SqliteValue | undefined;
 
 export class Statement<
-  Row = Record<string, SqliteValue>,
+  Row = unknown,
   Bindings = SqliteValue[] | Record<string, SqliteValue>,
 > {
   _stmt: StatementSync;

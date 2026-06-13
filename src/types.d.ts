@@ -17,7 +17,7 @@ declare global {
     $(strings: TemplateStringsArray | string, ...values: unknown[]): any;
     Glob: any;
     TOML: { parse(text: string): any; stringify(obj: any): string };
-    YAML: { parse(text: string): any; stringify(obj: any, opts?: any): string };
+    YAML: { parse(text: string): any; stringify(obj: any, replacer?: any, indent?: any): string };
     JSONC: { parse(text: string): any };
     JSON5: {
       parse(text: string): any;
