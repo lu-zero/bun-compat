@@ -34,15 +34,15 @@ export interface BunServer<T = unknown> {
 }
 
 class BunServerImpl<T = unknown> implements BunServer<T> {
-  #httpServer: Deno.HttpServer;
-  #wsUpgradeHandler?: (req: Request, opts?: { headers?: Headers }) => boolean;
+  _httpServer: Deno.HttpServer;
+  _wsUpgradeHandler?: (req: Request, opts?: { headers?: Headers }) => boolean;
 
   constructor(
     httpServer: Deno.HttpServer,
     wsUpgradeHandler?: (req: Request, opts?: { headers?: Headers }) => boolean,
   ) {
-    this.#httpServer = httpServer;
-    this.#wsUpgradeHandler = wsUpgradeHandler;
+    this._httpServer = httpServer;
+    this._wsUpgradeHandler = wsUpgradeHandler;
   }
 
   requestIP(
@@ -55,21 +55,21 @@ class BunServerImpl<T = unknown> implements BunServer<T> {
     _req: Request,
     _opts?: { headers?: Headers; data?: unknown },
   ): boolean {
-    if (this.#wsUpgradeHandler) {
-      return this.#wsUpgradeHandler(_req, _opts);
+    if (this._wsUpgradeHandler) {
+      return this._wsUpgradeHandler(_req, _opts);
     }
     return false;
   }
 
   stop(closeActiveConnections?: boolean): void {
-    this.#httpServer.shutdown();
+    this._httpServer.shutdown();
     if (closeActiveConnections) {
-      void this.#httpServer.finished;
+      void this._httpServer.finished;
     }
   }
 
   get port(): number {
-    const addr = this.#httpServer.addr;
+    const addr = this._httpServer.addr;
     if (addr && typeof addr === "object" && "port" in addr) {
       return (addr as Deno.NetAddr).port;
     }
@@ -77,7 +77,7 @@ class BunServerImpl<T = unknown> implements BunServer<T> {
   }
 
   get hostname(): string {
-    const addr = this.#httpServer.addr;
+    const addr = this._httpServer.addr;
     if (addr && typeof addr === "object" && "hostname" in addr) {
       return (addr as Deno.NetAddr).hostname;
     }

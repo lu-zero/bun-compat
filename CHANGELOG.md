@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.1]
+
+### Added
+
+- `globals.d.ts` — global type overrides for Deno to match Bun's timer (`unref`,
+  `ref`, `refresh`) and `fetch.preconnect` API. Consumers include it via
+  `compilerOptions.types` or import from `@lu-zero/bun-compat/globals`.
+
+### Changed
+
+- All classes (`BunFile`, `FileSink`, `Statement`, `Database`, `Subprocess`,
+  `BunServerImpl`, `ShellPromise`, `ShellBytes`) now use underscore-prefixed
+  properties (`_path`, `_db`, etc.) instead of `#private` fields. This makes
+  them structurally compatible with consumer-side interface declarations.
+
 ## [0.5.0]
 
 ### Added

@@ -41,60 +41,60 @@ export class Subprocess<
   Out = "pipe" | "inherit" | "ignore",
   Err = "pipe" | "inherit" | "ignore",
 > {
-  #child: Deno.ChildProcess;
-  #exitCode: number | null = null;
-  #exitPromise: Promise<number>;
+  _child: Deno.ChildProcess;
+  _exitCode: number | null = null;
+  _exitPromise: Promise<number>;
 
   constructor(child: Deno.ChildProcess) {
-    this.#child = child;
-    this.#exitPromise = this.#child.status
+    this._child = child;
+    this._exitPromise = this._child.status
       .then((s) => {
         const code = s.code ?? 1;
-        this.#exitCode = code;
+        this._exitCode = code;
         return code;
       })
       .catch((e) => {
         const code = typeof e?.code === "number" ? e.code : 1;
-        this.#exitCode = code;
+        this._exitCode = code;
         return code;
       });
   }
 
   get pid(): number {
-    return this.#child.pid;
+    return this._child.pid;
   }
 
   get stdin(): WritableStream<Uint8Array> {
-    return this.#child.stdin!;
+    return this._child.stdin!;
   }
 
   get stdout(): ReadableStream<Uint8Array> {
-    return this.#child.stdout!;
+    return this._child.stdout!;
   }
 
   get stderr(): ReadableStream<Uint8Array> {
-    return this.#child.stderr!;
+    return this._child.stderr!;
   }
 
   get exited(): Promise<number> {
-    return this.#exitPromise;
+    return this._exitPromise;
   }
 
   get exitCode(): number | null {
-    return this.#exitCode;
+    return this._exitCode;
   }
 
   kill(signal?: string): void {
     if (signal === "SIGKILL") {
-      this.#child.kill("SIGKILL");
+      this._child.kill("SIGKILL");
     } else {
-      this.#child.kill((signal as Deno.Signal) || "SIGTERM");
+      this._child.kill((signal as Deno.Signal) || "SIGTERM");
     }
   }
 
   [Symbol.dispose](): void {
     try {
-      this.#child.kill("SIGTERM");
+      this._child.kill("SIGTERM");
     } catch {
       // already exited
     }

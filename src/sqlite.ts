@@ -33,41 +33,41 @@ export class Statement<
   Row = Record<string, SqliteValue>,
   Bindings = SqliteValue[] | Record<string, SqliteValue>,
 > {
-  #stmt: StatementSync;
-  #columnNames: string[] | null = null;
+  _stmt: StatementSync;
+  _columnNames: string[] | null = null;
 
   constructor(stmt: StatementSync) {
-    this.#stmt = stmt;
+    this._stmt = stmt;
   }
 
   get(...params: (SqliteValue | undefined)[]): Row | undefined {
-    const result = this.#stmt.get(...toInputs(params as SqliteValue[]));
+    const result = this._stmt.get(...toInputs(params as SqliteValue[]));
     return result as Row | undefined;
   }
 
   all(...params: (SqliteValue | undefined)[]): Row[] {
-    return this.#stmt.all(...toInputs(params as SqliteValue[])) as Row[];
+    return this._stmt.all(...toInputs(params as SqliteValue[])) as Row[];
   }
 
   run(...params: (SqliteValue | undefined)[]): {
     changes: number;
     lastInsertRowid: number | bigint;
   } {
-    return this.#stmt.run(...toInputs(params as SqliteValue[])) as {
+    return this._stmt.run(...toInputs(params as SqliteValue[])) as {
       changes: number;
       lastInsertRowid: number | bigint;
     };
   }
 
   get columnNames(): string[] {
-    if (this.#columnNames === null) {
-      this.#columnNames = this.#stmt.columns().map((c) => c.name);
+    if (this._columnNames === null) {
+      this._columnNames = this._stmt.columns().map((c) => c.name);
     }
-    return this.#columnNames;
+    return this._columnNames;
   }
 
   get paramsCount(): number {
-    const sql = this.#stmt.sourceSQL ?? "";
+    const sql = this._stmt.sourceSQL ?? "";
     let count = 0;
     let inString = false;
     let stringChar = "";
@@ -99,7 +99,7 @@ export class Statement<
 }
 
 export class Database {
-  #db: DatabaseSync;
+  _db: DatabaseSync;
 
   constructor(
     path: string,
@@ -110,7 +110,7 @@ export class Database {
       strict?: boolean;
     },
   ) {
-    this.#db = new DatabaseSync(path, {
+    this._db = new DatabaseSync(path, {
       open: options?.create !== false,
       readOnly: options?.readonly,
     });
@@ -120,7 +120,7 @@ export class Database {
     Row = Record<string, SqliteValue>,
     Bindings = SqliteValue[] | Record<string, SqliteValue>,
   >(sql: string): Statement<Row, Bindings> {
-    return new Statement(this.#db.prepare(sql));
+    return new Statement(this._db.prepare(sql));
   }
 
   run(
@@ -131,7 +131,7 @@ export class Database {
       this.exec(sql);
       return { changes: 0, lastInsertRowid: 0n };
     }
-    const stmt = this.#db.prepare(sql);
+    const stmt = this._db.prepare(sql);
     if (params) {
       return stmt.run(...toInputs(Object.values(params))) as {
         changes: number;
@@ -142,21 +142,21 @@ export class Database {
   }
 
   exec(sql: string): void {
-    this.#db.exec(sql);
+    this._db.exec(sql);
   }
 
   query<Row = SqliteRow, Bindings extends SQLQueryBindings = SQLQueryBindings>(
     sql: string,
   ): Statement<Row, Bindings> {
-    return new Statement<Row, Bindings>(this.#db.prepare(sql));
+    return new Statement<Row, Bindings>(this._db.prepare(sql));
   }
 
   close(): void {
-    this.#db.close();
+    this._db.close();
   }
 
   get inTransaction(): boolean {
-    return this.#db.isTransaction;
+    return this._db.isTransaction;
   }
 
   serialize(fn?: () => void): void {
@@ -169,13 +169,13 @@ export class Database {
 
   transaction<T extends (...args: any[]) => any>(fn: T): T {
     const wrapper = (...args: Parameters<T>): ReturnType<T> => {
-      this.#db.exec("BEGIN");
+      this._db.exec("BEGIN");
       try {
         const result = fn(...args);
-        this.#db.exec("COMMIT");
+        this._db.exec("COMMIT");
         return result;
       } catch (e) {
-        this.#db.exec("ROLLBACK");
+        this._db.exec("ROLLBACK");
         throw e;
       }
     };

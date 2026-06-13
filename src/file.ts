@@ -53,16 +53,17 @@ function toBunStat(info: Deno.FileInfo): BunStat {
   };
 }
 
-export class FileSink {
-  #file: Deno.FsFile;
-  #path: string;
+const fileState = new WeakMap<FileSink, { file: Deno.FsFile; path: string }>();
 
+export class FileSink {
   constructor(path: string) {
-    this.#path = path;
-    this.#file = Deno.openSync(path, {
-      write: true,
-      create: true,
-      append: true,
+    fileState.set(this, {
+      file: Deno.openSync(path, {
+        write: true,
+        create: true,
+        append: true,
+      }),
+      path,
     });
   }
 
@@ -70,20 +71,20 @@ export class FileSink {
     const bytes = typeof data === "string"
       ? new TextEncoder().encode(data)
       : data;
-    const n = this.#file.writeSync(bytes);
-    return n;
+    return fileState.get(this)!.file.writeSync(bytes);
   }
 
   flush(): number | undefined {
-    this.#file.syncSync();
+    fileState.get(this)!.file.syncSync();
     return 0;
   }
 
   end(): void {
+    const s = fileState.get(this)!;
     try {
-      this.#file.syncSync();
+      s.file.syncSync();
     } catch {}
-    this.#file.close();
+    s.file.close();
   }
 
   ref(): void {}
@@ -91,41 +92,41 @@ export class FileSink {
   unref(): void {}
 }
 
-export class BunFile {
-  #path: string;
+const bunPaths = new WeakMap<BunFile, string>();
 
+export class BunFile {
   constructor(input: string | URL) {
-    this.#path = toPath(input);
+    bunPaths.set(this, toPath(input));
   }
 
   get path(): string {
-    return this.#path;
+    return bunPaths.get(this)!;
   }
 
   get type(): string {
-    return mimeType(this.#path);
+    return mimeType(bunPaths.get(this)!);
   }
 
   async text(): Promise<string> {
-    return Deno.readTextFile(this.#path);
+    return Deno.readTextFile(bunPaths.get(this)!);
   }
 
   async json(): Promise<any> {
-    return JSON.parse(await Deno.readTextFile(this.#path));
+    return JSON.parse(await Deno.readTextFile(bunPaths.get(this)!));
   }
 
   async arrayBuffer(): Promise<ArrayBuffer> {
-    const data = await Deno.readFile(this.#path);
+    const data = await Deno.readFile(bunPaths.get(this)!);
     return data.buffer as ArrayBuffer;
   }
 
   async bytes(): Promise<Uint8Array> {
-    return Deno.readFile(this.#path);
+    return Deno.readFile(bunPaths.get(this)!);
   }
 
   async exists(): Promise<boolean> {
     try {
-      await Deno.stat(this.#path);
+      await Deno.stat(bunPaths.get(this)!);
       return true;
     } catch (err) {
       if (err instanceof Deno.errors.NotFound) return false;
@@ -135,15 +136,15 @@ export class BunFile {
 
   async write(data: string | Uint8Array | ArrayBuffer | Blob): Promise<void> {
     const { write } = await import("./write.ts");
-    await write(this.#path, data);
+    await write(bunPaths.get(this)!, data);
   }
 
   writer(): FileSink {
-    return new FileSink(this.#path);
+    return new FileSink(bunPaths.get(this)!);
   }
 
   get writable(): WritableStream<Uint8Array> {
-    const writer = Deno.openSync(this.#path, {
+    const writer = Deno.openSync(bunPaths.get(this)!, {
       write: true,
       create: true,
       truncate: true,
@@ -152,13 +153,13 @@ export class BunFile {
   }
 
   get readable(): ReadableStream<Uint8Array> {
-    const file = Deno.openSync(this.#path, { read: true });
+    const file = Deno.openSync(bunPaths.get(this)!, { read: true });
     return file.readable;
   }
 
   get size(): number | undefined {
     try {
-      return Deno.statSync(this.#path).size;
+      return Deno.statSync(bunPaths.get(this)!).size;
     } catch {
       return undefined;
     }
@@ -166,7 +167,7 @@ export class BunFile {
 
   async stat(): Promise<BunStat | null> {
     try {
-      const info = await Deno.stat(this.#path);
+      const info = await Deno.stat(bunPaths.get(this)!);
       return toBunStat(info);
     } catch {
       return null;
@@ -174,11 +175,11 @@ export class BunFile {
   }
 
   slice(start?: number, end?: number, contentType?: string): BunFile {
-    return new BunFile(this.#path);
+    return new BunFile(bunPaths.get(this)!);
   }
 
   async unlink(): Promise<void> {
-    await Deno.remove(this.#path);
+    await Deno.remove(bunPaths.get(this)!);
   }
 }
 
