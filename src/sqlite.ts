@@ -4,6 +4,8 @@ type SqliteValue = string | number | bigint | Uint8Array | boolean | null;
 
 type SqliteInputValue = string | number | bigint | Uint8Array | null;
 
+type SqliteRow = Record<string, SqliteValue>;
+
 function toInput(v: SqliteValue): SqliteInputValue {
   if (typeof v === "boolean") return v ? 1 : 0;
   return v;
@@ -24,6 +26,9 @@ export type SQLQueryBindings =
   | Record<string, SqliteValue>
   | SqliteValue[];
 
+export type { SqliteRow, SqliteValue };
+export type SqliteBinding = SqliteValue | undefined;
+
 export class Statement<
   Row = Record<string, SqliteValue>,
   Bindings = SqliteValue[] | Record<string, SqliteValue>,
@@ -35,20 +40,20 @@ export class Statement<
     this.#stmt = stmt;
   }
 
-  get(...params: SqliteValue[]): Row | undefined {
-    const result = this.#stmt.get(...toInputs(params));
+  get(...params: (SqliteValue | undefined)[]): Row | undefined {
+    const result = this.#stmt.get(...toInputs(params as SqliteValue[]));
     return result as Row | undefined;
   }
 
-  all(...params: SqliteValue[]): Row[] {
-    return this.#stmt.all(...toInputs(params)) as Row[];
+  all(...params: (SqliteValue | undefined)[]): Row[] {
+    return this.#stmt.all(...toInputs(params as SqliteValue[])) as Row[];
   }
 
-  run(...params: SqliteValue[]): {
+  run(...params: (SqliteValue | undefined)[]): {
     changes: number;
     lastInsertRowid: number | bigint;
   } {
-    return this.#stmt.run(...toInputs(params)) as {
+    return this.#stmt.run(...toInputs(params as SqliteValue[])) as {
       changes: number;
       lastInsertRowid: number | bigint;
     };
@@ -138,6 +143,12 @@ export class Database {
 
   exec(sql: string): void {
     this.#db.exec(sql);
+  }
+
+  query<Row = SqliteRow, Bindings extends SQLQueryBindings = SQLQueryBindings>(
+    sql: string,
+  ): Statement<Row, Bindings> {
+    return new Statement<Row, Bindings>(this.#db.prepare(sql));
   }
 
   close(): void {

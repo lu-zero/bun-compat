@@ -13,7 +13,7 @@ export interface ServeOptions {
   maxRequestBodySize?: number;
 }
 
-export interface BunServer {
+export interface BunServer<T = unknown> {
   requestIP?: (
     req: Request,
   ) => { address: string; family: string; port: number } | null;
@@ -33,7 +33,7 @@ export interface BunServer {
   ): number;
 }
 
-class BunServerImpl implements BunServer {
+class BunServerImpl<T = unknown> implements BunServer<T> {
   #httpServer: Deno.HttpServer;
   #wsUpgradeHandler?: (req: Request, opts?: { headers?: Headers }) => boolean;
 
@@ -101,11 +101,11 @@ class BunServerImpl implements BunServer {
   }
 }
 
-export function serve(opts: ServeOptions): BunServer {
+export function serve<T = unknown>(opts: ServeOptions): BunServer<T> {
   let serverRef: Deno.HttpServer | null = null;
 
   const handler = async (req: Request): Promise<Response> => {
-    const bunServer = new BunServerImpl(serverRef!);
+    const bunServer = new BunServerImpl<T>(serverRef!);
     try {
       return await opts.fetch(req, bunServer);
     } catch (err) {
@@ -121,5 +121,5 @@ export function serve(opts: ServeOptions): BunServer {
 
   serverRef = httpServer;
 
-  return new BunServerImpl(httpServer);
+  return new BunServerImpl<T>(httpServer);
 }
