@@ -1,6 +1,6 @@
 {
   "name": "@lu-zero/bun-compat",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "exports": {
     ".": "./src/index.ts",
     "./bun": "./src/from-bun.ts",
@@ -9,7 +9,8 @@
     "./ffi": "./src/ffi.ts",
     "./ffi-structs": "./src/ffi-structs.ts",
     "./archive": "./src/archive.ts",
-    "./socket": "./src/socket.ts"
+    "./socket": "./src/socket.ts",
+    "./globals": "./src/globals.d.ts"
   },
   "publish": {
     "exclude": ["test/", ".github/"]
@@ -46,7 +47,8 @@
         "no-empty",
         "require-await",
         "prefer-const",
-        "no-unused-vars"
+        "no-unused-vars",
+        "no-var"
       ]
     }
   },

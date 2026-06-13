@@ -9,17 +9,17 @@ export interface ShellResult {
 }
 
 class ShellBytes extends Uint8Array {
-  #decoded?: string;
+  _decoded?: string;
 
   constructor(data: Uint8Array) {
     super(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength);
   }
 
   override toString(): string {
-    if (this.#decoded === undefined) {
-      this.#decoded = new TextDecoder().decode(this);
+    if (this._decoded === undefined) {
+      this._decoded = new TextDecoder().decode(this);
     }
-    return this.#decoded;
+    return this._decoded;
   }
 }
 
@@ -123,55 +123,55 @@ async function runShell(
 }
 
 class ShellPromise {
-  #commandStr: string;
-  #config: ShellConfig;
-  #promise: Promise<ShellResult> | null = null;
+  _commandStr: string;
+  _config: ShellConfig;
+  _promise: Promise<ShellResult> | null = null;
 
   constructor(commandStr: string, config: ShellConfig) {
-    this.#commandStr = commandStr;
-    this.#config = config;
+    this._commandStr = commandStr;
+    this._config = config;
   }
 
-  #run(): Promise<ShellResult> {
-    if (!this.#promise) {
-      this.#promise = runShell(this.#commandStr, this.#config);
+  _run(): Promise<ShellResult> {
+    if (!this._promise) {
+      this._promise = runShell(this._commandStr, this._config);
     }
-    return this.#promise;
+    return this._promise;
   }
 
   quiet(): ShellPromise {
-    return new ShellPromise(this.#commandStr, { ...this.#config, quiet: true });
+    return new ShellPromise(this._commandStr, { ...this._config, quiet: true });
   }
 
   nothrow(): ShellPromise {
-    return new ShellPromise(this.#commandStr, {
-      ...this.#config,
+    return new ShellPromise(this._commandStr, {
+      ...this._config,
       nothrow: true,
     });
   }
 
   cwd(dir: string): ShellPromise {
-    return new ShellPromise(this.#commandStr, { ...this.#config, cwd: dir });
+    return new ShellPromise(this._commandStr, { ...this._config, cwd: dir });
   }
 
   env(env: Record<string, string>): ShellPromise {
-    return new ShellPromise(this.#commandStr, { ...this.#config, env });
+    return new ShellPromise(this._commandStr, { ...this._config, env });
   }
 
   input(data: string | Uint8Array): ShellPromise {
-    return new ShellPromise(this.#commandStr, { ...this.#config, input: data });
+    return new ShellPromise(this._commandStr, { ...this._config, input: data });
   }
 
   text(): Promise<string> {
-    return this.#run().then((r) => r.text());
+    return this._run().then((r) => r.text());
   }
 
   json(): Promise<any> {
-    return this.#run().then((r) => r.json());
+    return this._run().then((r) => r.json());
   }
 
   lines(): Promise<string[]> {
-    return this.#run().then((r) => r.lines());
+    return this._run().then((r) => r.lines());
   }
 
   then<TResult1, TResult2>(
@@ -180,13 +180,13 @@ class ShellPromise {
       | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
   ): Promise<TResult1 | TResult2> {
-    return this.#run().then(onfulfilled, onrejected);
+    return this._run().then(onfulfilled, onrejected);
   }
 
   catch<TResult>(
     onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null,
   ): Promise<ShellResult | TResult> {
-    return this.#run().catch(onrejected);
+    return this._run().catch(onrejected);
   }
 
   get [Symbol.toStringTag](): string {
